@@ -2,12 +2,31 @@ import { DatabaseSync } from 'node:sqlite';
 import path from 'path';
 import fs from 'fs';
 
-const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '../../data');
-const DB_PATH = path.join(DATA_DIR, 'aura.db');
+function resolveDataDir(): string {
+  const candidates = [
+    process.env.DATA_DIR,
+    path.join(__dirname, '../../data'),
+    path.join(__dirname, '../data'),
+    path.join(process.cwd(), 'data'),
+  ].filter(Boolean) as string[];
 
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
+  for (const dir of candidates) {
+    try {
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      // Test write access
+      const testFile = path.join(dir, '.write_test');
+      fs.writeFileSync(testFile, '1');
+      fs.unlinkSync(testFile);
+      return dir;
+    } catch {
+      // try next
+    }
+  }
+  throw new Error('Cannot find a writable data directory');
 }
+
+const DATA_DIR = resolveDataDir();
+const DB_PATH = path.join(DATA_DIR, 'aura.db');
 
 let dbInstance: DatabaseSync | null = null;
 
