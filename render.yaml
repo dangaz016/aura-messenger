@@ -1,11 +1,12 @@
-# Render.com deployment config — at repo root
+# Render.com deployment config — repo root
+# Server serves BOTH the API and the built React frontend (same URL, same origin)
 services:
   - type: web
     name: aura-server
     runtime: node
-    rootDir: server
-    buildCommand: npm install && npm run build
-    startCommand: npm start
+    # Build client first, then server. Server looks for ../../client/dist at runtime.
+    buildCommand: npm --prefix client install && npm --prefix client run build && npm --prefix server install && npm --prefix server run build
+    startCommand: npm --prefix server start
     plan: free
     envVars:
       - key: NODE_VERSION
@@ -13,10 +14,8 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: CORS_ORIGINS
-        sync: false   # Set in Render dashboard: https://aura-messenger-ar.netlify.app,http://localhost:5173
+        value: "*"
       - key: PORT
         value: "10000"
-      - key: DATA_DIR
-        value: "/data"
       - key: GROQ_API_KEY
         sync: false   # Set in Render dashboard: your Groq API key
