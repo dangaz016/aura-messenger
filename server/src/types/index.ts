@@ -18,6 +18,7 @@ export interface UserRow {
   avatar_url: string | null;
   created_at: number;
   last_seen: number;
+  last_username_change: number;
 }
 
 export interface StoryRow {

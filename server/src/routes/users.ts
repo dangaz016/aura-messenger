@@ -53,6 +53,58 @@ router.patch('/profile', (req, res) => {
   res.json({ user: rowToPublicUser(user) });
 });
 
+router.patch('/username', (req, res) => {
+  const { newUsername } = req.body;
+
+  if (!newUsername) {
+    return res.status(400).json({ error: 'New username is required' });
+  }
+
+  if (!/^[a-zA-Z0-9_]{3,20}$/.test(newUsername)) {
+    return res.status(400).json({ error: 'Username must be 3-20 chars: letters/numbers/underscore' });
+  }
+
+  const db = getDb();
+  const currentUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user!.userId) as unknown as UserRow;
+
+  if (!currentUser) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+
+  // Check if username is the same
+  if (currentUser.username === newUsername) {
+    return res.status(400).json({ error: 'New username cannot be the same as current' });
+  }
+
+  // Check if 30 days have passed since last change
+  const now = Math.floor(Date.now() / 1000);
+  const lastChange = currentUser.last_username_change || 0;
+  const daysSinceChange = (now - lastChange) / (60 * 60 * 24);
+
+  if (daysSinceChange < 30) {
+    const daysLeft = Math.ceil(30 - daysSinceChange);
+    return res.status(403).json({ 
+      error: `You can change your username again in ${daysLeft} day${daysLeft === 1 ? '' : 's'}`,
+      daysLeft 
+    });
+  }
+
+  // Check if new username is taken
+  const existing = db.prepare('SELECT id FROM users WHERE username = ? AND id != ?')
+    .get(newUsername, req.user!.userId);
+  
+  if (existing) {
+    return res.status(409).json({ error: 'Username already taken' });
+  }
+
+  // Update username
+  db.prepare('UPDATE users SET username = ?, last_username_change = ? WHERE id = ?')
+    .run(newUsername, now, req.user!.userId);
+
+  const updatedUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user!.userId) as unknown as UserRow;
+  res.json({ user: rowToPublicUser(updatedUser) });
+});
+
 router.get('/:id', (req, res) => {
   const db = getDb();
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id) as unknown as UserRow | undefined;

@@ -129,6 +129,9 @@ function initializeSchema(db: DatabaseSync) {
     db.exec("ALTER TABLE users ADD COLUMN avatar_url TEXT");
   } catch { /* already exists */ }
   try {
+    db.exec("ALTER TABLE users ADD COLUMN last_username_change INTEGER DEFAULT 0");
+  } catch { /* already exists */ }
+  try {
     db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id) WHERE google_id IS NOT NULL");
   } catch { /* ignore */ }
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, LogOut, Palette, ShieldCheck, Eye, EyeOff, BellOff, Check, Moon, Sparkles, Waves, Bell } from 'lucide-react';
+import { X, LogOut, Palette, ShieldCheck, Eye, EyeOff, BellOff, Check, Moon, Sparkles, Waves, Bell, Edit3 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useChat } from '../../contexts/ChatContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -45,6 +45,10 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+  const [showUsernameChange, setShowUsernameChange] = useState(false);
+  const [newUsername, setNewUsername] = useState('');
+  const [usernameError, setUsernameError] = useState('');
+  const [changingUsername, setChangingUsername] = useState(false);
 
   useEffect(() => {
     if ('Notification' in window) {
@@ -75,6 +79,34 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     setNotificationPermission(permission);
   }
 
+  async function handleUsernameChange() {
+    if (!newUsername.trim()) {
+      setUsernameError(t('settings.username_required'));
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9_]{3,20}$/.test(newUsername)) {
+      setUsernameError(t('settings.username_invalid'));
+      return;
+    }
+
+    setChangingUsername(true);
+    setUsernameError('');
+
+    try {
+      const updatedUser = await api.changeUsername(newUsername);
+      updateUser(updatedUser);
+      setShowUsernameChange(false);
+      setNewUsername('');
+      alert(t('settings.username_changed'));
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.error || t('settings.username_error');
+      setUsernameError(errorMsg);
+    } finally {
+      setChangingUsername(false);
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-start justify-center p-0 lg:p-4 overflow-y-auto animate-fade-in">
       <div className="card w-full max-w-full lg:max-w-2xl my-0 lg:my-8 min-h-full lg:min-h-0 lg:rounded-2xl rounded-none animate-slide-up">
@@ -102,8 +134,17 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                   />
                 </div>
                 <div>
-                  <Label>{t('settings.username_readonly')}</Label>
-                  <input value={`@${user.username}`} readOnly className="input-aura w-full opacity-60" />
+                  <Label>{t('settings.username')}</Label>
+                  <div className="flex gap-2">
+                    <input value={`@${user.username}`} readOnly className="input-aura flex-1 opacity-60" />
+                    <button
+                      onClick={() => setShowUsernameChange(true)}
+                      className="btn-secondary"
+                      title={t('settings.change_username')}
+                    >
+                      <Edit3 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -122,6 +163,65 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
               </div>
             </div>
           </Section>
+
+          {/* Change Username Modal */}
+          {showUsernameChange && (
+            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+              <div className="bg-aura-surface border border-aura-border rounded-2xl max-w-md w-full p-6 animate-scale-in">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-lg">{t('settings.change_username')}</h3>
+                  <button onClick={() => { setShowUsernameChange(false); setUsernameError(''); setNewUsername(''); }} className="p-2 hover:bg-aura-elevated rounded-lg">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <Label>{t('settings.current_username')}</Label>
+                    <input value={`@${user.username}`} readOnly className="input-aura w-full opacity-60" />
+                  </div>
+
+                  <div>
+                    <Label>{t('settings.new_username')}</Label>
+                    <input
+                      type="text"
+                      value={newUsername}
+                      onChange={(e) => { setNewUsername(e.target.value); setUsernameError(''); }}
+                      placeholder="new_username"
+                      className="input-aura w-full"
+                      maxLength={20}
+                    />
+                    {usernameError && (
+                      <div className="mt-2 text-xs text-aura-dnd">{usernameError}</div>
+                    )}
+                    <div className="mt-2 text-xs text-aura-text-muted">
+                      {t('settings.username_hint')}
+                    </div>
+                  </div>
+
+                  <div className="px-3 py-2 rounded-lg bg-aura-ghost/10 border border-aura-ghost/30 text-xs text-aura-text-dim">
+                    {t('settings.username_limit')}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setShowUsernameChange(false); setUsernameError(''); setNewUsername(''); }}
+                      className="btn-secondary flex-1"
+                    >
+                      {t('settings.cancel')}
+                    </button>
+                    <button
+                      onClick={handleUsernameChange}
+                      disabled={changingUsername || !newUsername.trim()}
+                      className="btn-primary flex-1"
+                    >
+                      {changingUsername ? t('settings.changing') : t('settings.change')}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Mood */}
           <Section title={t('settings.section_mood')} icon={<Sparkles className="w-4 h-4" />}>

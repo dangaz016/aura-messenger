@@ -76,6 +76,11 @@ class ApiService {
     return data.user;
   }
 
+  async changeUsername(newUsername: string) {
+    const { data } = await this.client.patch<{ user: User }>('/users/username', { newUsername });
+    return data.user;
+  }
+
   async getUser(id: string) {
     const { data } = await this.client.get<{ user: User }>(`/users/${id}`);
     return data.user;
