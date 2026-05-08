@@ -1,4 +1,4 @@
-import { DatabaseSync } from 'node:sqlite';
+import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 
@@ -8,6 +8,7 @@ function resolveDataDir(): string {
     path.join(__dirname, '../../data'),
     path.join(__dirname, '../data'),
     path.join(process.cwd(), 'data'),
+    '/tmp/aura-data',
   ].filter(Boolean) as string[];
 
   for (const dir of candidates) {
@@ -28,11 +29,11 @@ function resolveDataDir(): string {
 const DATA_DIR = resolveDataDir();
 const DB_PATH = path.join(DATA_DIR, 'aura.db');
 
-let dbInstance: DatabaseSync | null = null;
+let dbInstance: Database.Database | null = null;
 
-export function getDb(): DatabaseSync {
+export function getDb(): Database.Database {
   if (!dbInstance) {
-    dbInstance = new DatabaseSync(DB_PATH);
+    dbInstance = new Database(DB_PATH);
     dbInstance.exec('PRAGMA journal_mode = WAL');
     dbInstance.exec('PRAGMA foreign_keys = ON');
     initializeSchema(dbInstance);
@@ -40,7 +41,7 @@ export function getDb(): DatabaseSync {
   return dbInstance;
 }
 
-function initializeSchema(db: DatabaseSync) {
+function initializeSchema(db: Database.Database) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
@@ -194,3 +195,7 @@ export function closeDb() {
     dbInstance = null;
   }
 }
+
+// Log the resolved data directory for debugging
+console.log(`[DB] Data directory: ${DATA_DIR}`);
+console.log(`[DB] Database path: ${DB_PATH}`);
