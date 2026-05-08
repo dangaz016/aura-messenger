@@ -187,6 +187,8 @@ function initializeSchema(db: Database.Database) {
   try {
     db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_chats_channel_username ON chats(channel_username) WHERE channel_username IS NOT NULL");
   } catch { /* ignore */ }
+  // Migrations: messages table
+  try { db.exec("ALTER TABLE messages ADD COLUMN reply_to_id TEXT REFERENCES messages(id)"); } catch { /* already exists */ }
 }
 
 export function closeDb() {

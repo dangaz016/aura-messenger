@@ -59,6 +59,7 @@ export function Sidebar({ onOpenSettings, view, setView, showMobile, onCloseMobi
               <Avatar
                 name={user.displayName}
                 color={user.avatarColor}
+                imageUrl={user.avatarUrl}
                 size={40}
                 isOnline={true}
                 auraMode={user.auraMode}

@@ -89,9 +89,10 @@ export function setupSocketHandlers(io: SocketIOServer) {
       type?: MessageType;
       fileId?: string;
       echoDuration?: number;
+      replyToId?: string;
     }) => {
       try {
-        const { chatId, content, type = 'text', fileId, echoDuration } = data;
+        const { chatId, content, type = 'text', fileId, echoDuration, replyToId } = data;
         if (!chatId || !content) return socket.emit('error', { message: 'Missing fields' });
 
         const member = db.prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?')
@@ -103,15 +104,19 @@ export function setupSocketHandlers(io: SocketIOServer) {
         const echoExpiresAt = echoDuration ? now + echoDuration : null;
 
         db.prepare(`
-          INSERT INTO messages (id, chat_id, sender_id, content, type, file_id, echo_duration, echo_expires_at, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(messageId, chatId, socket.userId!, content, type, fileId ?? null, echoDuration ?? null, echoExpiresAt, now);
+          INSERT INTO messages (id, chat_id, sender_id, content, type, file_id, echo_duration, echo_expires_at, created_at, reply_to_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(messageId, chatId, socket.userId!, content, type, fileId ?? null, echoDuration ?? null, echoExpiresAt, now, replyToId ?? null);
 
         const msg = db.prepare(`
-          SELECT m.*, u.username, u.display_name, u.avatar_color, f.original_name as file_name, f.mime_type as file_mime
+          SELECT m.*, u.username, u.display_name, u.avatar_color,
+                 f.original_name as file_name, f.mime_type as file_mime,
+                 rm.content as reply_content, rm.type as reply_type, ru.display_name as reply_sender_name
           FROM messages m
           LEFT JOIN users u ON u.id = m.sender_id
           LEFT JOIN files f ON f.id = m.file_id
+          LEFT JOIN messages rm ON rm.id = m.reply_to_id
+          LEFT JOIN users ru ON ru.id = rm.sender_id
           WHERE m.id = ?
         `).get(messageId) as unknown as MessageRow & {
           username: string;
@@ -119,6 +124,9 @@ export function setupSocketHandlers(io: SocketIOServer) {
           avatar_color: string;
           file_name: string | null;
           file_mime: string | null;
+          reply_content: string | null;
+          reply_type: string | null;
+          reply_sender_name: string | null;
         };
 
         const payload = {
@@ -136,6 +144,10 @@ export function setupSocketHandlers(io: SocketIOServer) {
           echoDuration: msg.echo_duration,
           echoExpiresAt: msg.echo_expires_at,
           createdAt: msg.created_at,
+          replyToId: replyToId ?? null,
+          replyContent: msg.reply_content ?? null,
+          replyType: msg.reply_type ?? null,
+          replySenderName: msg.reply_sender_name ?? null,
           reactions: [],
         };
 

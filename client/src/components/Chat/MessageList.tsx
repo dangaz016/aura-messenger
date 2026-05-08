@@ -9,7 +9,7 @@ interface MessageListProps {
 }
 
 export function MessageList({ chatId }: MessageListProps) {
-  const { messages, typingUsers, chats } = useChat();
+  const { messages, typingUsers, chats, explodingIds } = useChat();
   const { user } = useAuth();
   const { t } = useT();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -62,6 +62,7 @@ export function MessageList({ chatId }: MessageListProps) {
               isOwn={isOwn}
               isFirstInGroup={isFirstInGroup}
               showSender={chat?.type !== 'direct' && !isOwn && isFirstInGroup}
+              isExploding={explodingIds.has(msg.id)}
             />
           </div>
         );

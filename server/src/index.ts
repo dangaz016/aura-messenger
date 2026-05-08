@@ -3,6 +3,8 @@ import cors from 'cors';
 import http from 'http';
 import path from 'path';
 import fs from 'fs';
+import bcrypt from 'bcryptjs';
+import { v4 as uuidv4 } from 'uuid';
 import { Server as SocketIOServer } from 'socket.io';
 import { getDb } from './db/database';
 import { setupSocketHandlers } from './socket/handlers';
@@ -13,6 +15,39 @@ import filesRoutes from './routes/files';
 import storiesRoutes, { startStoryCleanup } from './routes/stories';
 import aiRoutes from './routes/ai';
 import adminRoutes, { reportRouter } from './routes/admin';
+
+// ── Auto-create first admin from env vars ────────────────────────────────────
+async function initAdminIfNeeded() {
+  const adminUser = process.env.ADMIN_INIT_USER;
+  const adminPass = process.env.ADMIN_INIT_PASS;
+  if (!adminUser || !adminPass) return;
+  try {
+    const db = getDb();
+    // If user exists, just make admin
+    const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(adminUser) as { id: string } | undefined;
+    if (existing) {
+      db.prepare('UPDATE users SET is_admin = 1 WHERE username = ?').run(adminUser);
+      console.log(`[admin] Granted admin to existing user: ${adminUser}`);
+      return;
+    }
+    // No admin at all and ADMIN_INIT_USER is set → create new admin user
+    const hasAdmin = db.prepare('SELECT id FROM users WHERE is_admin = 1').get();
+    if (hasAdmin && !existing) {
+      console.log(`[admin] Admin already exists, skipping ADMIN_INIT_USER`);
+      return;
+    }
+    const hash = await bcrypt.hash(adminPass, 10);
+    const now = Math.floor(Date.now() / 1000);
+    const userId = uuidv4();
+    db.prepare(`
+      INSERT INTO users (id, username, password_hash, display_name, avatar_color, is_admin, mood_emoji, mood_text, created_at, last_seen)
+      VALUES (?, ?, ?, ?, '#7C3AED', 1, '🛡️', 'Admin', ?, ?)
+    `).run(userId, adminUser, hash, adminUser, now, now);
+    console.log(`[admin] Created admin user: ${adminUser}`);
+  } catch (err) {
+    console.error('[admin] Failed to init admin:', err);
+  }
+}
 
 // Load .env if present (local dev)
 try {
@@ -100,6 +135,7 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 
 setupSocketHandlers(io);
 startStoryCleanup();
+initAdminIfNeeded();
 
 server.listen(PORT, () => {
   console.log(`

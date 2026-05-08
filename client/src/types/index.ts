@@ -110,6 +110,10 @@ export interface Message {
   createdAt: number;
   editedAt: number | null;
   reactions: Reaction[];
+  replyToId: string | null;
+  replyContent: string | null;
+  replyType: string | null;
+  replySenderName: string | null;
 }
 
 export interface UserStatus {

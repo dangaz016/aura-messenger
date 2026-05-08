@@ -16,7 +16,8 @@ import { StoryComposer } from './components/Stories/StoryComposer';
 import { AIAssistant } from './components/AI/AIAssistant';
 import { AnimatedBackground } from './components/Common/AnimatedBackground';
 import { registerServiceWorker } from './utils/notifications';
-import { Sparkles, Bot, Bell, X } from 'lucide-react';
+import { Sparkles, Bot, Bell, X, Shield } from 'lucide-react';
+import { AdminPanel } from './components/Admin/AdminPanel';
 
 // Telegram-style notification permission banner
 function NotificationBanner() {
@@ -96,6 +97,7 @@ function AppShell() {
   const { t } = useT();
   const [showSettings, setShowSettings] = useState(false);
   const [showAI, setShowAI] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
   const [view, setView] = useState<'chats' | 'spaces'>('chats');
   const [showSidebar, setShowSidebar] = useState(false);
 
@@ -186,7 +188,19 @@ function AppShell() {
               <span className="absolute inset-0 rounded-2xl bg-gradient-to-br from-violet-400/20 to-fuchsia-400/20 blur-md -z-10 group-hover:blur-lg transition-all" />
             </button>
 
+            {/* Admin button — only for admin users */}
+            {user?.isAdmin && (
+              <button
+                onClick={() => setShowAdmin(true)}
+                className="fixed bottom-24 right-20 lg:bottom-6 lg:right-6 z-40 w-11 h-11 rounded-2xl bg-aura-dnd/80 hover:bg-aura-dnd text-white flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all"
+                title="Admin Panel"
+              >
+                <Shield className="w-5 h-5" />
+              </button>
+            )}
+
             {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
+            {showAdmin && <AdminPanel onClose={() => setShowAdmin(false)} />}
             <AIAssistant open={showAI} onClose={() => setShowAI(false)} />
             <StoryViewer />
             <StoryComposer />

@@ -55,7 +55,7 @@ class SocketService {
     return this.on('reaction_update', listener);
   }
 
-  sendMessage(chatId: string, content: string, opts: { type?: MessageType; fileId?: string; echoDuration?: number } = {}) {
+  sendMessage(chatId: string, content: string, opts: { type?: MessageType; fileId?: string; echoDuration?: number; replyToId?: string } = {}) {
     this.socket?.emit('send_message', { chatId, content, ...opts });
   }
 

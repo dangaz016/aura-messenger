@@ -11,7 +11,7 @@ interface ChatContextValue {
   setActiveChatId: (id: string | null) => void;
   messages: Map<string, Message[]>;
   loadMessages: (chatId: string) => Promise<void>;
-  sendMessage: (chatId: string, content: string, opts?: { type?: 'text' | 'file' | 'image' | 'voice' | 'video'; fileId?: string; echoDuration?: number }) => void;
+  sendMessage: (chatId: string, content: string, opts?: { type?: 'text' | 'file' | 'image' | 'voice' | 'video'; fileId?: string; echoDuration?: number; replyToId?: string }) => void;
   refreshChats: () => Promise<void>;
   createDirectChat: (userId: string) => Promise<Chat>;
   createGroupChat: (name: string, memberIds: string[], description?: string) => Promise<Chat>;
@@ -23,6 +23,7 @@ interface ChatContextValue {
   deleteMessage: (messageId: string) => void;
   toggleReaction: (messageId: string, emoji: string) => void;
   updateAuraMode: (mode: AuraMode) => void;
+  explodingIds: Set<string>;
 }
 
 const ChatContext = createContext<ChatContextValue | null>(null);
@@ -35,6 +36,35 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [userStatuses, setUserStatuses] = useState<Map<string, UserStatus>>(new Map());
   const [typingUsers, setTypingUsers] = useState<Map<string, Set<string>>>(new Map());
   const typingTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  // ── Echo explosion queue ─────────────────────────────────────────────────
+  const [explodingIds, setExplodingIds] = useState<Set<string>>(new Set());
+  const explosionQueueRef = useRef<Array<{ chatId: string; messageId: string }>>([]);
+  const explosionBusyRef = useRef(false);
+  // Use a ref-based processor so it can reference itself without stale closures
+  const processExplosionRef = useRef<() => void>(null!);
+  processExplosionRef.current = () => {
+    if (explosionBusyRef.current || explosionQueueRef.current.length === 0) return;
+    explosionBusyRef.current = true;
+    const { chatId, messageId } = explosionQueueRef.current[0];
+    setExplodingIds(prev => new Set([...prev, messageId]));
+    setTimeout(() => {
+      setMessages(prev => {
+        const next = new Map(prev);
+        const list = next.get(chatId);
+        if (list) next.set(chatId, list.filter(m => m.id !== messageId));
+        return next;
+      });
+      setExplodingIds(prev => {
+        const s = new Set(prev);
+        s.delete(messageId);
+        return s;
+      });
+      explosionQueueRef.current.shift();
+      explosionBusyRef.current = false;
+      processExplosionRef.current();
+    }, 750);
+  };
 
   const refreshChats = useCallback(async () => {
     if (!user) return;
@@ -106,9 +136,18 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
     const unsubDel = socketService.onMessageDeleted((d) => {
       setMessages((prev) => {
+        const list = prev.get(d.chatId) || [];
+        const msg = list.find(m => m.id === d.messageId);
+        if (msg?.echoExpiresAt) {
+          // Echo message expired → queue sequential explosion
+          explosionQueueRef.current.push({ chatId: d.chatId, messageId: d.messageId });
+          processExplosionRef.current();
+          return prev; // keep in list until animation finishes
+        }
+        // Regular deletion → remove immediately
         const next = new Map(prev);
-        const list = next.get(d.chatId);
-        if (list) next.set(d.chatId, list.filter((m) => m.id !== d.messageId));
+        const list2 = next.get(d.chatId);
+        if (list2) next.set(d.chatId, list2.filter(m => m.id !== d.messageId));
         return next;
       });
       refreshChats();
@@ -150,7 +189,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     refreshChats();
   }, [refreshChats]);
 
-  const sendMessage = useCallback((chatId: string, content: string, opts: { type?: 'text' | 'file' | 'image' | 'voice' | 'video'; fileId?: string; echoDuration?: number } = {}) => {
+  const sendMessage = useCallback((chatId: string, content: string, opts: { type?: 'text' | 'file' | 'image' | 'voice' | 'video'; fileId?: string; echoDuration?: number; replyToId?: string } = {}) => {
     socketService.sendMessage(chatId, content, opts);
   }, []);
 
@@ -202,6 +241,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       refreshChats, createDirectChat, createGroupChat, createSpace,
       userStatuses, typingUsers, startTyping, stopTyping,
       deleteMessage, toggleReaction, updateAuraMode,
+      explodingIds,
     }}>
       {children}
     </ChatContext.Provider>

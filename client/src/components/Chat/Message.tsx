@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Timer, Trash2, Smile, Download, FileText, Play, Pause } from 'lucide-react';
+import { Timer, Trash2, Smile, Download, FileText, Play, Pause, Reply } from 'lucide-react';
 import { Message as MessageType } from '../../types';
 import { useChat } from '../../contexts/ChatContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -126,14 +126,18 @@ function VideoCircle({ url }: { url: string }) {
   );
 }
 
+// Explosion particle colors
+const PARTICLE_COLORS = ['#7C3AED', '#A78BFA', '#EC4899', '#F472B6', '#F59E0B', '#60A5FA', '#34D399', '#FB7185'];
+
 interface MessageProps {
   message: MessageType;
   isOwn: boolean;
   isFirstInGroup: boolean;
   showSender: boolean;
+  isExploding?: boolean;
 }
 
-export function Message({ message, isOwn, isFirstInGroup, showSender }: MessageProps) {
+export function Message({ message, isOwn, isFirstInGroup, showSender, isExploding = false }: MessageProps) {
   const { user } = useAuth();
   const { deleteMessage, toggleReaction } = useChat();
   const { t } = useT();
@@ -208,10 +212,48 @@ export function Message({ message, isOwn, isFirstInGroup, showSender }: MessageP
         )}
 
         <div className="relative group/bubble">
+          {/* Explosion particles */}
+          {isExploding && Array.from({ length: 8 }).map((_, i) => {
+            const angle = (i / 8) * 360;
+            const dist = 35 + (i % 3) * 12;
+            const dx = Math.cos(angle * Math.PI / 180) * dist;
+            const dy = Math.sin(angle * Math.PI / 180) * dist;
+            return (
+              <div
+                key={i}
+                className="explode-particle"
+                style={{
+                  '--dx': `${dx}px`,
+                  '--dy': `${dy}px`,
+                  backgroundColor: PARTICLE_COLORS[i % PARTICLE_COLORS.length],
+                  left: '50%', top: '50%',
+                  marginLeft: '-3.5px', marginTop: '-3.5px',
+                  animationDelay: `${i * 30}ms`,
+                } as React.CSSProperties}
+              />
+            );
+          })}
+
           {!isVideoCircle && (
           <div
-            className={`relative px-3 py-2 rounded-2xl ${isOwn ? 'message-bubble-out rounded-br-md' : 'message-bubble-in rounded-bl-md'} ${isEcho ? 'echo-pulse' : ''}`}
+            className={`relative px-3 py-2 rounded-2xl ${isOwn ? 'message-bubble-out rounded-br-md' : 'message-bubble-in rounded-bl-md'} ${isEcho ? 'echo-pulse' : ''} ${isExploding ? 'echo-explode' : ''}`}
           >
+            {/* Reply quote bubble */}
+            {message.replyToId && message.replyContent != null && (
+              <div className={`mb-1.5 -mx-1 px-2 py-1.5 rounded-lg border-l-2 ${isOwn ? 'bg-white/10 border-white/40' : 'bg-aura-surface2 border-aura-primary/60'}`}>
+                <div className={`flex items-center gap-1 mb-0.5 ${isOwn ? 'text-white/80' : 'text-aura-primary-light'} text-[11px] font-semibold`}>
+                  <Reply className="w-3 h-3" />
+                  <span className="truncate">{message.replySenderName}</span>
+                </div>
+                <div className={`text-xs truncate ${isOwn ? 'text-white/65' : 'text-aura-text-muted'}`}>
+                  {message.replyType === 'voice' ? '🎤 Голосовое'
+                    : message.replyType === 'video' ? '🎥 Кружок'
+                    : message.replyType === 'image' ? '🖼 Фото'
+                    : message.replyContent}
+                </div>
+              </div>
+            )}
+
             {isImage && fileUrl && (
               <a href={fileUrl} target="_blank" rel="noreferrer" className="block mb-1 -mx-1 -mt-1">
                 <img

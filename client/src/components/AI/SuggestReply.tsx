@@ -43,19 +43,21 @@ export function SuggestReply({ messages, onPick }: SuggestReplyProps) {
 
   if (!open) {
     return (
-      <button
-        onClick={() => { setOpen(true); loadSuggestions(); }}
-        disabled={messages.length === 0}
-        className="p-2 rounded-lg hover:bg-aura-elevated text-aura-primary-light hover:text-aura-primary transition-colors disabled:opacity-50"
-        title={t('ai.suggest_reply')}
-      >
-        <Sparkles className="w-5 h-5" />
-      </button>
+      <div className="relative flex-shrink-0">
+        <button
+          onClick={() => { setOpen(true); loadSuggestions(); }}
+          disabled={messages.length === 0}
+          className="p-2 rounded-lg hover:bg-aura-elevated text-aura-primary-light hover:text-aura-primary transition-colors disabled:opacity-50 w-9 h-9 flex items-center justify-center"
+          title={t('ai.suggest_reply')}
+        >
+          <Sparkles className="w-5 h-5" />
+        </button>
+      </div>
     );
   }
 
   return (
-    <div className="absolute bottom-full mb-2 left-0 right-0 mx-3 bg-aura-elevated border border-aura-border rounded-xl shadow-lg z-10 p-3 animate-slide-up">
+    <div className="absolute bottom-full mb-2 left-2 right-2 bg-aura-elevated border border-aura-border rounded-xl shadow-xl z-20 p-3 animate-slide-up">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-1.5 text-xs font-semibold text-aura-primary-light">
           <Sparkles className="w-3.5 h-3.5" />
@@ -84,7 +86,7 @@ export function SuggestReply({ messages, onPick }: SuggestReplyProps) {
       )}
 
       {suggestions.length > 0 && (
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 max-h-44 overflow-y-auto">
           {suggestions.map((s, i) => (
             <button
               key={i}

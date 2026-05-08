@@ -250,10 +250,13 @@ router.get('/:id/messages', (req, res) => {
   }
 
   const messages = db.prepare(`
-    SELECT m.*, u.username, u.display_name, u.avatar_color, f.original_name as file_name, f.mime_type as file_mime
+    SELECT m.*, u.username, u.display_name, u.avatar_color, f.original_name as file_name, f.mime_type as file_mime,
+           rm.content as reply_content, rm.type as reply_type, ru.display_name as reply_sender_name, m.reply_to_id
     FROM messages m
     LEFT JOIN users u ON u.id = m.sender_id
     LEFT JOIN files f ON f.id = m.file_id
+    LEFT JOIN messages rm ON rm.id = m.reply_to_id
+    LEFT JOIN users ru ON ru.id = rm.sender_id
     WHERE m.chat_id = ?
       AND m.created_at < ?
       AND m.is_deleted = 0
@@ -266,6 +269,10 @@ router.get('/:id/messages', (req, res) => {
     avatar_color: string;
     file_name: string | null;
     file_mime: string | null;
+    reply_to_id: string | null;
+    reply_content: string | null;
+    reply_type: string | null;
+    reply_sender_name: string | null;
   })[];
 
   const reactionsByMsg = new Map<string, { userId: string; emoji: string }[]>();
@@ -297,6 +304,10 @@ router.get('/:id/messages', (req, res) => {
     createdAt: m.created_at,
     editedAt: m.edited_at,
     reactions: reactionsByMsg.get(m.id) || [],
+    replyToId: m.reply_to_id ?? null,
+    replyContent: m.reply_content ?? null,
+    replyType: m.reply_type ?? null,
+    replySenderName: m.reply_sender_name ?? null,
   }));
 
   const now = Math.floor(Date.now() / 1000);
@@ -407,6 +418,60 @@ router.delete('/:id/leave', (req, res) => {
     db.prepare('UPDATE chats SET subscriber_count = MAX(0, subscriber_count - 1) WHERE id = ?').run(req.params.id);
   }
   res.json({ success: true });
+});
+
+// POST /api/chats/:id/kick — kick member (admin only)
+router.post('/:id/kick', (req, res) => {
+  const db = getDb();
+  const { userId } = req.body as { userId: string };
+  const chatId = req.params.id;
+  const requesterId = req.user!.userId;
+
+  const chat = db.prepare('SELECT created_by FROM chats WHERE id = ?').get(chatId) as { created_by: string } | undefined;
+  const requesterRole = db.prepare('SELECT role FROM chat_members WHERE chat_id = ? AND user_id = ?').get(chatId, requesterId) as { role: string } | undefined;
+  if (!chat || (chat.created_by !== requesterId && requesterRole?.role !== 'admin')) {
+    return res.status(403).json({ error: 'Admin only' });
+  }
+  if (userId === requesterId) return res.status(400).json({ error: 'Cannot kick yourself' });
+
+  db.prepare('DELETE FROM chat_members WHERE chat_id = ? AND user_id = ?').run(chatId, userId);
+  res.json({ success: true });
+});
+
+// POST /api/chats/:id/promote — promote/demote member
+router.post('/:id/promote', (req, res) => {
+  const db = getDb();
+  const { userId, role } = req.body as { userId: string; role: 'admin' | 'member' };
+  const chatId = req.params.id;
+  const requesterId = req.user!.userId;
+
+  const chat = db.prepare('SELECT created_by FROM chats WHERE id = ?').get(chatId) as { created_by: string } | undefined;
+  if (!chat || chat.created_by !== requesterId) {
+    return res.status(403).json({ error: 'Only creator can promote' });
+  }
+
+  db.prepare('UPDATE chat_members SET role = ? WHERE chat_id = ? AND user_id = ?').run(role, chatId, userId);
+  res.json({ success: true });
+});
+
+// POST /api/chats/:id/invite — generate/get invite link
+router.post('/:id/invite', (req, res) => {
+  const db = getDb();
+  const chatId = req.params.id;
+  const userId = req.user!.userId;
+
+  if (!isMember(chatId, userId)) return res.status(403).json({ error: 'Not a member' });
+
+  const chat = db.prepare('SELECT invite_link FROM chats WHERE id = ?').get(chatId) as { invite_link: string | null } | undefined;
+  if (!chat) return res.status(404).json({ error: 'Not found' });
+
+  let link = chat.invite_link;
+  if (!link) {
+    link = uuidv4().replace(/-/g, '').slice(0, 16);
+    db.prepare('UPDATE chats SET invite_link = ? WHERE id = ?').run(link, chatId);
+  }
+
+  res.json({ inviteLink: link });
 });
 
 // GET /api/chats/search/public — search public channels

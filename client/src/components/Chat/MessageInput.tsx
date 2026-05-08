@@ -1,9 +1,17 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Paperclip, Timer, Smile, X, Mic, Camera, Image, Video } from 'lucide-react';
+import { Send, Paperclip, Timer, Smile, X, Mic, Camera, Image, Video, Reply } from 'lucide-react';
 import { useChat } from '../../contexts/ChatContext';
 import { useT } from '../../contexts/LanguageContext';
 import { api } from '../../services/api';
 import { SuggestReply } from '../AI/SuggestReply';
+import { Message } from '../../types';
+
+export interface ReplyTarget {
+  id: string;
+  senderName: string;
+  content: string;
+  type: string;
+}
 
 const getEchoOptions = (offLabel: string): { label: string; value: number | null }[] => [
   { label: offLabel, value: null },
@@ -20,9 +28,11 @@ const QUICK_EMOJIS = ['😀', '😂', '😍', '🥰', '😎', '🤔', '👀', '�
 interface MessageInputProps {
   chatId: string;
   chatType: 'direct' | 'group' | 'space' | 'channel';
+  replyTo?: ReplyTarget | null;
+  onClearReply?: () => void;
 }
 
-export function MessageInput({ chatId }: MessageInputProps) {
+export function MessageInput({ chatId, replyTo, onClearReply }: MessageInputProps) {
   const { sendMessage, startTyping, stopTyping, messages: allMessages } = useChat();
   const { t } = useT();
   const ECHO_OPTIONS = getEchoOptions(t('input.echo_off'));
@@ -99,9 +109,13 @@ export function MessageInput({ chatId }: MessageInputProps) {
   function handleSend() {
     const content = text.trim();
     if (!content) return;
-    sendMessage(chatId, content, { echoDuration: echoDuration ?? undefined });
+    sendMessage(chatId, content, {
+      echoDuration: echoDuration ?? undefined,
+      replyToId: replyTo?.id,
+    });
     setText('');
     setShowEmoji(false);
+    onClearReply?.();
     if (isTypingRef.current) {
       stopTyping(chatId);
       isTypingRef.current = false;
@@ -349,7 +363,7 @@ export function MessageInput({ chatId }: MessageInputProps) {
   // ── Normal input UI ───────────────────────────────────────────────────────
 
   return (
-    <div className="border-t border-aura-border bg-aura-surface/40 backdrop-blur-md">
+    <div className="border-t border-aura-border bg-aura-surface/40 backdrop-blur-md safe-bottom">
       {echoDuration && (
         <div className="px-4 pt-2 -mb-1 flex items-center gap-2 text-xs text-aura-ghost">
           <Timer className="w-3 h-3" />
@@ -364,10 +378,26 @@ export function MessageInput({ chatId }: MessageInputProps) {
         <div className="px-4 pt-2 text-xs text-aura-text-dim">{uploadProgress}</div>
       )}
 
+      {/* Reply preview */}
+      {replyTo && (
+        <div className="mx-3 mt-2 px-3 py-1.5 rounded-xl bg-aura-elevated border-l-2 border-aura-primary flex items-start gap-2">
+          <Reply className="w-3.5 h-3.5 text-aura-primary mt-0.5 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-medium text-aura-primary-light truncate">{replyTo.senderName}</div>
+            <div className="text-xs text-aura-text-muted truncate">
+              {replyTo.type === 'voice' ? '🎤 Голосовое' : replyTo.type === 'video' ? '🎥 Кружок' : replyTo.type === 'image' ? '🖼 Фото' : replyTo.content}
+            </div>
+          </div>
+          <button onClick={onClearReply} className="p-0.5 hover:bg-aura-surface2 rounded text-aura-text-muted">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Hidden file inputs */}
-      <input ref={fileInputRef} type="file" onChange={handleFile} className="hidden" accept="*/*" />
-      <input ref={imageInputRef} type="file" onChange={handleFile} className="hidden" accept="image/*,video/*" />
-      <input ref={cameraInputRef} type="file" onChange={handleFile} className="hidden" accept="image/*" capture="environment" />
+      <input ref={fileInputRef} id="aura-file-input" type="file" onChange={handleFile} className="sr-only" accept="*/*" />
+      <input ref={imageInputRef} id="aura-gallery-input" type="file" onChange={handleFile} className="sr-only" accept="image/*,video/*" />
+      <input ref={cameraInputRef} id="aura-camera-input" type="file" onChange={handleFile} className="sr-only" accept="image/*" capture="environment" />
 
       <div className="p-3 flex items-end gap-2 relative">
 
@@ -382,35 +412,40 @@ export function MessageInput({ chatId }: MessageInputProps) {
           </button>
           {showMediaMenu && (
             <div className="absolute bottom-full mb-2 left-0 bg-aura-elevated border border-aura-border rounded-xl p-1 flex flex-col gap-0.5 shadow-lg z-20 min-w-[180px]">
-              <button
-                onClick={() => { imageInputRef.current?.click(); setShowMediaMenu(false); }}
-                className="flex items-center gap-3 text-left text-sm px-3 py-2 rounded-lg hover:bg-aura-surface2 transition-colors"
+              {/* Use <label> for gallery — works on iOS/Android without programmatic click */}
+              <label
+                htmlFor="aura-gallery-input"
+                onClick={() => setShowMediaMenu(false)}
+                className="flex items-center gap-3 text-sm px-3 py-2.5 rounded-lg hover:bg-aura-surface2 transition-colors cursor-pointer"
               >
-                <Image className="w-4 h-4 text-blue-400" />
+                <Image className="w-4 h-4 text-blue-400 flex-shrink-0" />
                 <span>Галерея</span>
-              </button>
-              <button
-                onClick={() => { cameraInputRef.current?.click(); setShowMediaMenu(false); }}
-                className="flex items-center gap-3 text-left text-sm px-3 py-2 rounded-lg hover:bg-aura-surface2 transition-colors"
+              </label>
+              <label
+                htmlFor="aura-camera-input"
+                onClick={() => setShowMediaMenu(false)}
+                className="flex items-center gap-3 text-sm px-3 py-2.5 rounded-lg hover:bg-aura-surface2 transition-colors cursor-pointer"
               >
-                <Camera className="w-4 h-4 text-green-400" />
+                <Camera className="w-4 h-4 text-green-400 flex-shrink-0" />
                 <span>Камера (фото)</span>
-              </button>
+              </label>
               <button
+                type="button"
                 onClick={startVideoCircle}
-                className="flex items-center gap-3 text-left text-sm px-3 py-2 rounded-lg hover:bg-aura-surface2 transition-colors"
+                className="flex items-center gap-3 text-left text-sm px-3 py-2.5 rounded-lg hover:bg-aura-surface2 transition-colors"
               >
-                <Video className="w-4 h-4 text-purple-400" />
+                <Video className="w-4 h-4 text-purple-400 flex-shrink-0" />
                 <span>Видео-кружок</span>
               </button>
               <div className="border-t border-aura-border my-0.5" />
-              <button
-                onClick={() => { fileInputRef.current?.click(); setShowMediaMenu(false); }}
-                className="flex items-center gap-3 text-left text-sm px-3 py-2 rounded-lg hover:bg-aura-surface2 transition-colors"
+              <label
+                htmlFor="aura-file-input"
+                onClick={() => setShowMediaMenu(false)}
+                className="flex items-center gap-3 text-sm px-3 py-2.5 rounded-lg hover:bg-aura-surface2 transition-colors cursor-pointer"
               >
-                <Paperclip className="w-4 h-4 text-aura-text-dim" />
+                <Paperclip className="w-4 h-4 text-aura-text-dim flex-shrink-0" />
                 <span>Файл</span>
-              </button>
+              </label>
             </div>
           )}
         </div>
@@ -473,12 +508,13 @@ export function MessageInput({ chatId }: MessageInputProps) {
             <Smile className="w-5 h-5" />
           </button>
           {showEmoji && (
-            <div className="absolute bottom-full mb-2 right-0 bg-aura-elevated border border-aura-border rounded-xl p-3 grid grid-cols-5 gap-1 shadow-lg z-10">
+            <div className="absolute bottom-full mb-2 right-0 bg-aura-elevated border border-aura-border rounded-xl p-2 grid grid-cols-6 gap-0.5 shadow-lg z-10 w-56">
               {QUICK_EMOJIS.map(e => (
                 <button
                   key={e}
-                  onClick={() => setText(prev => prev + e)}
-                  className="text-2xl hover:scale-125 transition-transform p-1"
+                  onClick={() => { setText(prev => prev + e); setShowEmoji(false); }}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-aura-surface2 transition-colors text-xl leading-none"
+                  style={{ fontSize: '20px', lineHeight: 1 }}
                 >
                   {e}
                 </button>

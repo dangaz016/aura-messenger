@@ -264,6 +264,19 @@ class ApiService {
     await this.client.post('/report', { targetUserId, reason });
   }
 
+  async generateInviteLink(chatId: string) {
+    const { data } = await this.client.post<{ inviteLink: string }>(`/chats/${chatId}/invite`);
+    return data.inviteLink;
+  }
+
+  async kickMember(chatId: string, userId: string) {
+    await this.client.post(`/chats/${chatId}/kick`, { userId });
+  }
+
+  async promoteMember(chatId: string, userId: string, role: 'admin' | 'member') {
+    await this.client.post(`/chats/${chatId}/promote`, { userId, role });
+  }
+
   // ===== GOOGLE OAUTH =====
   async googleStatus() {
     const { data } = await this.client.get<{ available: boolean; clientId: string | null }>('/auth/google/status');
