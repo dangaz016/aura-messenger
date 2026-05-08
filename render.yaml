@@ -1,10 +1,11 @@
 # Render.com deployment config — repo root
+# prebuild in server/package.json handles building the client automatically
 services:
   - type: web
     name: aura-server
     runtime: node
     rootDir: server
-    buildCommand: npm --prefix ../client install && npm --prefix ../client run build && npm install && npm run build
+    buildCommand: npm install && npm run build
     startCommand: npm start
     plan: free
     envVars:
