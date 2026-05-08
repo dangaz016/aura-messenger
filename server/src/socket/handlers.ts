@@ -61,20 +61,26 @@ export function setupSocketHandlers(io: SocketIOServer) {
 
     socket.userId = payload.userId;
     socket.username = payload.username;
-    addUserSocket(payload.userId, socket.id);
 
     const db = getDb();
+    const connUser = db.prepare('SELECT * FROM users WHERE id = ?').get(payload.userId) as unknown as UserRow | undefined;
+    if (!connUser) {
+      socket.emit('auth_error', { message: 'User not found' });
+      socket.disconnect();
+      return;
+    }
+
+    addUserSocket(payload.userId, socket.id);
     db.prepare('UPDATE users SET last_seen = unixepoch() WHERE id = ?').run(payload.userId);
 
     socket.emit('authenticated', { userId: payload.userId });
 
     const related = getRelatedUsers(payload.userId);
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(payload.userId) as unknown as UserRow;
     emitToUsers(io, related, 'user_status', {
       userId: payload.userId,
-      auraMode: user.aura_mode,
+      auraMode: connUser.aura_mode,
       isOnline: true,
-      lastSeen: user.last_seen,
+      lastSeen: connUser.last_seen,
     });
 
     socket.on('send_message', (data: {
@@ -235,13 +241,15 @@ export function setupSocketHandlers(io: SocketIOServer) {
         const now = Math.floor(Date.now() / 1000);
         db.prepare('UPDATE users SET last_seen = ? WHERE id = ?').run(now, socket.userId);
         const related = getRelatedUsers(socket.userId);
-        const user = db.prepare('SELECT * FROM users WHERE id = ?').get(socket.userId) as unknown as UserRow;
-        emitToUsers(io, related, 'user_status', {
-          userId: socket.userId,
-          auraMode: user.aura_mode,
-          isOnline: false,
-          lastSeen: now,
-        });
+        const discUser = db.prepare('SELECT * FROM users WHERE id = ?').get(socket.userId) as unknown as UserRow | undefined;
+        if (discUser) {
+          emitToUsers(io, related, 'user_status', {
+            userId: socket.userId,
+            auraMode: discUser.aura_mode,
+            isOnline: false,
+            lastSeen: now,
+          });
+        }
       }
     });
   });
