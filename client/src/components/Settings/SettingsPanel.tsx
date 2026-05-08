@@ -63,8 +63,8 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto animate-fade-in">
-      <div className="card w-full max-w-2xl my-8 animate-slide-up">
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-start justify-center p-0 lg:p-4 overflow-y-auto animate-fade-in">
+      <div className="card w-full max-w-full lg:max-w-2xl my-0 lg:my-8 min-h-full lg:min-h-0 lg:rounded-2xl rounded-none animate-slide-up">
         <div className="flex items-center justify-between p-6 border-b border-aura-border">
           <h2 className="text-2xl font-bold">{t('settings.title')}</h2>
           <button onClick={onClose} className="p-2 hover:bg-aura-elevated rounded-lg">

@@ -13,9 +13,11 @@ interface SidebarProps {
   onOpenAI?: () => void;
   view: 'chats' | 'spaces';
   setView: (v: 'chats' | 'spaces') => void;
+  showMobile?: boolean;
+  onCloseMobile?: () => void;
 }
 
-export function Sidebar({ onOpenSettings, view, setView }: SidebarProps) {
+export function Sidebar({ onOpenSettings, view, setView, showMobile, onCloseMobile }: SidebarProps) {
   const { user } = useAuth();
   const { chats, activeChatId, setActiveChatId, userStatuses } = useChat();
   const { t } = useT();
@@ -34,7 +36,19 @@ export function Sidebar({ onOpenSettings, view, setView }: SidebarProps) {
 
   return (
     <>
-      <aside className="w-80 bg-aura-surface border-r border-aura-border flex flex-col h-full">
+      {/* Mobile backdrop */}
+      {showMobile && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={onCloseMobile}
+        />
+      )}
+
+      <aside className={`
+        w-80 bg-aura-surface border-r border-aura-border flex flex-col h-full
+        fixed lg:static inset-y-0 left-0 z-50 transform transition-transform duration-300
+        ${showMobile ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      `}>
         <div className="p-4 border-b border-aura-border flex items-center gap-3">
           <button
             onClick={onOpenSettings}
@@ -132,7 +146,10 @@ export function Sidebar({ onOpenSettings, view, setView }: SidebarProps) {
                 key={chat.id}
                 chat={chat}
                 active={chat.id === activeChatId}
-                onClick={() => setActiveChatId(chat.id)}
+                onClick={() => {
+                  setActiveChatId(chat.id);
+                  onCloseMobile?.();
+                }}
                 userStatus={chat.otherUser ? userStatuses.get(chat.otherUser.id) : undefined}
               />
             ))

@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import { Phone, Video, MoreVertical, Hash, Users, ShieldCheck } from 'lucide-react';
+import { Phone, Video, MoreVertical, Hash, Users, ShieldCheck, Menu, ArrowLeft } from 'lucide-react';
 import { useChat } from '../../contexts/ChatContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useT } from '../../contexts/LanguageContext';
@@ -8,7 +8,11 @@ import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
 import { formatLastSeen } from '../../utils/formatters';
 
-export function ChatWindow() {
+interface ChatWindowProps {
+  onOpenSidebar?: () => void;
+}
+
+export function ChatWindow({ onOpenSidebar }: ChatWindowProps) {
   const { user } = useAuth();
   const { chats, activeChatId, loadMessages, userStatuses, typingUsers } = useChat();
   const { t, lang } = useT();
@@ -80,6 +84,14 @@ export function ChatWindow() {
     <div className="flex-1 flex flex-col bg-aura-bg">
       <header className="h-16 border-b border-aura-border flex items-center justify-between px-4 bg-aura-surface/40 backdrop-blur-md">
         <div className="flex items-center gap-3 min-w-0">
+          {/* Mobile menu button */}
+          <button
+            onClick={onOpenSidebar}
+            className="lg:hidden p-2 -ml-2 hover:bg-aura-elevated rounded-lg"
+            aria-label="Open menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
           {activeChat.type === 'space' ? (
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center text-white"

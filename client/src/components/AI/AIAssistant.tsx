@@ -85,8 +85,8 @@ export function AIAssistant({ open, onClose }: AIAssistantProps) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-      <div className="w-full max-w-lg bg-aura-surface rounded-2xl overflow-hidden flex flex-col h-[80vh] animate-slide-up border border-aura-border">
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-0 lg:p-4 animate-fade-in">
+      <div className="w-full max-w-full lg:max-w-lg bg-aura-surface lg:rounded-2xl overflow-hidden flex flex-col h-full lg:h-[80vh] animate-slide-up border-0 lg:border border-aura-border">
         {/* Header */}
         <div className="p-4 border-b border-aura-border flex items-center justify-between">
           <div className="flex items-center gap-3">

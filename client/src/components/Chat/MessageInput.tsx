@@ -34,6 +34,7 @@ export function MessageInput({ chatId }: MessageInputProps) {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTypingRef = useRef(false);
 
@@ -70,6 +71,8 @@ export function MessageInput({ chatId }: MessageInputProps) {
       stopTyping(chatId);
       isTypingRef.current = false;
     }
+    // Keep focus on mobile
+    textareaRef.current?.focus();
   }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -169,6 +172,7 @@ export function MessageInput({ chatId }: MessageInputProps) {
 
         <div className="relative flex-1">
           <textarea
+            ref={textareaRef}
             value={text}
             onChange={(e) => handleTextChange(e.target.value)}
             onKeyDown={handleKey}
@@ -176,6 +180,9 @@ export function MessageInput({ chatId }: MessageInputProps) {
             rows={1}
             className="input-aura w-full resize-none max-h-32 py-2.5"
             style={{ minHeight: '42px' }}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="sentences"
           />
         </div>
 
@@ -205,7 +212,7 @@ export function MessageInput({ chatId }: MessageInputProps) {
         <button
           onClick={handleSend}
           disabled={!text.trim()}
-          className="p-2 rounded-lg bg-aura-primary hover:bg-aura-primary-light disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="p-2 rounded-lg bg-aura-primary hover:bg-aura-primary-light active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
           title={t('input.send')}
         >
           <Send className="w-5 h-5 text-white" />

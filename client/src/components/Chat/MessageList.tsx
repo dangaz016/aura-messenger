@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useChat } from '../../contexts/ChatContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useT } from '../../contexts/LanguageContext';
@@ -14,6 +14,7 @@ export function MessageList({ chatId }: MessageListProps) {
   const { t } = useT();
   const containerRef = useRef<HTMLDivElement>(null);
   const messageList = messages.get(chatId) || [];
+  const [lastMessageId, setLastMessageId] = useState<string | null>(null);
 
   const chat = chats.find(c => c.id === chatId);
   const typingSet = typingUsers.get(chatId) || new Set();
@@ -25,6 +26,13 @@ export function MessageList({ chatId }: MessageListProps) {
   useEffect(() => {
     if (containerRef.current) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight;
+    }
+    // Track last message for animation
+    if (messageList.length > 0) {
+      const newLastId = messageList[messageList.length - 1].id;
+      if (newLastId !== lastMessageId) {
+        setLastMessageId(newLastId);
+      }
     }
   }, [messageList.length, typingNames.length, chatId]);
 
@@ -46,14 +54,16 @@ export function MessageList({ chatId }: MessageListProps) {
         const prev = messageList[i - 1];
         const isFirstInGroup = !prev || prev.senderId !== msg.senderId || (msg.createdAt - prev.createdAt) > 300;
         const isOwn = msg.senderId === user?.id;
+        const isNewMessage = msg.id === lastMessageId && i === messageList.length - 1;
         return (
-          <Message
-            key={msg.id}
-            message={msg}
-            isOwn={isOwn}
-            isFirstInGroup={isFirstInGroup}
-            showSender={chat?.type !== 'direct' && !isOwn && isFirstInGroup}
-          />
+          <div key={msg.id} className={isNewMessage ? 'message-send' : ''}>
+            <Message
+              message={msg}
+              isOwn={isOwn}
+              isFirstInGroup={isFirstInGroup}
+              showSender={chat?.type !== 'direct' && !isOwn && isFirstInGroup}
+            />
+          </div>
         );
       })}
 

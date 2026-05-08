@@ -26,6 +26,7 @@ export function StoryViewer() {
   const startTimeRef = useRef<number>(Date.now());
   const elapsedRef = useRef<number>(0);
   const rafRef = useRef<number | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   const story = currentGroup?.stories[storyIndex];
 
@@ -154,6 +155,27 @@ export function StoryViewer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewerOpen, currentGroup, storyIndex, groupIndex]);
 
+  // Touch swipe handling
+  function handleTouchStart(e: React.TouchEvent) {
+    touchStartRef.current = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
+    };
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (!touchStartRef.current) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartRef.current.x;
+    const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
+    touchStartRef.current = null;
+
+    // Only horizontal swipes (not vertical scrolls)
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
+      if (deltaX > 0) handlePrev();
+      else handleNext();
+    }
+  }
+
   if (!viewerOpen || !currentGroup || !story) return null;
 
   const isOwn = user?.id === currentGroup.user.id;
@@ -175,7 +197,7 @@ export function StoryViewer() {
       />
 
       {/* Story container */}
-      <div className="relative w-full h-full max-w-md max-h-[90vh] mx-auto flex flex-col">
+      <div className="relative w-full h-full max-w-md lg:max-h-[90vh] mx-auto flex flex-col">
         {/* Progress bars */}
         <div className="absolute top-3 left-3 right-3 z-20 flex gap-1">
           {currentGroup.stories.map((s, i) => (
@@ -226,8 +248,8 @@ export function StoryViewer() {
           onMouseDown={() => setPaused(true)}
           onMouseUp={() => setPaused(false)}
           onMouseLeave={() => setPaused(false)}
-          onTouchStart={() => setPaused(true)}
-          onTouchEnd={() => setPaused(false)}
+          onTouchStart={(e) => { setPaused(true); handleTouchStart(e); }}
+          onTouchEnd={(e) => { setPaused(false); handleTouchEnd(e); }}
         >
           {story.type === 'text' ? (
             <div
@@ -245,11 +267,11 @@ export function StoryViewer() {
           ) : null}
         </div>
 
-        {/* Tap zones */}
-        <button onClick={handlePrev} className="absolute left-0 top-0 bottom-0 w-1/3 z-10" aria-label="Prev">
+        {/* Tap zones - hidden on touch devices, navigation is via swipe */}
+        <button onClick={handlePrev} className="hidden lg:block absolute left-0 top-0 bottom-0 w-1/3 z-10" aria-label="Prev">
           <ChevronLeft className="w-8 h-8 text-white/0 hover:text-white/40 absolute left-2 top-1/2 -translate-y-1/2" />
         </button>
-        <button onClick={handleNext} className="absolute right-0 top-0 bottom-0 w-1/3 z-10" aria-label="Next">
+        <button onClick={handleNext} className="hidden lg:block absolute right-0 top-0 bottom-0 w-1/3 z-10" aria-label="Next">
           <ChevronRight className="w-8 h-8 text-white/0 hover:text-white/40 absolute right-2 top-1/2 -translate-y-1/2" />
         </button>
 

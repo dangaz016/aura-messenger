@@ -23,14 +23,14 @@ export function StoriesBar() {
         {/* "Your story" — always first */}
         <button
           onClick={() => myGroup ? openViewer(user.id, 0) : openComposer()}
-          className="flex flex-col items-center gap-1 flex-shrink-0 group"
+          className="flex flex-col items-center gap-1 flex-shrink-0 group transition-transform hover:scale-110 active:scale-95"
         >
           <div className="relative">
             <div
-              className={`w-14 h-14 rounded-full p-0.5 ${
+              className={`w-14 h-14 rounded-full p-0.5 transition-all ${
                 myGroup
                   ? myGroup.hasUnviewed
-                    ? 'bg-gradient-to-tr from-aura-primary via-pink-500 to-orange-400'
+                    ? 'bg-gradient-to-tr from-aura-primary via-pink-500 to-orange-400 glow-primary'
                     : 'bg-aura-border'
                   : 'bg-aura-border'
               }`}
@@ -62,12 +62,12 @@ export function StoriesBar() {
           <button
             key={group.user.id}
             onClick={() => openViewer(group.user.id, 0)}
-            className="flex flex-col items-center gap-1 flex-shrink-0 group"
+            className="flex flex-col items-center gap-1 flex-shrink-0 group transition-transform hover:scale-110 active:scale-95 animate-scale-in"
           >
             <div
-              className={`w-14 h-14 rounded-full p-0.5 ${
+              className={`w-14 h-14 rounded-full p-0.5 transition-all ${
                 group.hasUnviewed
-                  ? 'bg-gradient-to-tr from-aura-primary via-pink-500 to-orange-400'
+                  ? 'bg-gradient-to-tr from-aura-primary via-pink-500 to-orange-400 glow-primary'
                   : 'bg-aura-border'
               }`}
             >

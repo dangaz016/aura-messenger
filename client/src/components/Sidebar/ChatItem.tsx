@@ -29,7 +29,7 @@ export function ChatItem({ chat, active, onClick, userStatus }: ChatItemProps) {
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-3 px-3 py-3 transition-colors text-left ${
+      className={`w-full flex items-center gap-3 px-3 py-3 transition-all duration-200 text-left hover:scale-[1.02] active:scale-[0.98] ${
         active ? 'bg-aura-primary-dim' : 'hover:bg-aura-elevated'
       }`}
     >
@@ -79,7 +79,7 @@ export function ChatItem({ chat, active, onClick, userStatus }: ChatItemProps) {
           </div>
 
           {chat.unreadCount > 0 && (
-            <span className="bg-aura-primary text-white text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center font-medium flex-shrink-0">
+            <span className="bg-aura-primary text-white text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center font-medium flex-shrink-0 animate-scale-in glow-primary">
               {chat.unreadCount > 99 ? '99+' : chat.unreadCount}
             </span>
           )}
