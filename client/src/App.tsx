@@ -13,6 +13,7 @@ import { StoryViewer } from './components/Stories/StoryViewer';
 import { StoryComposer } from './components/Stories/StoryComposer';
 import { AIAssistant } from './components/AI/AIAssistant';
 import { AnimatedBackground } from './components/Common/AnimatedBackground';
+import { registerServiceWorker } from './utils/notifications';
 import { Sparkles } from 'lucide-react';
 
 function StoriesEventBridge() {
@@ -35,6 +36,13 @@ function AppShell() {
   const [showAI, setShowAI] = useState(false);
   const [view, setView] = useState<'chats' | 'spaces'>('chats');
   const [showSidebar, setShowSidebar] = useState(false);
+
+  // Register service worker
+  useEffect(() => {
+    if (user) {
+      registerServiceWorker();
+    }
+  }, [user]);
 
   if (loading) {
     return (

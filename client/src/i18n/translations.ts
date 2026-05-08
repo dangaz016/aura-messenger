@@ -48,6 +48,15 @@ export const translations = {
   // ===== CHAT ITEM =====
   'chat_item.welcome_space': { en: 'Welcome to the space', ru: 'Добро пожаловать в пространство' },
   'chat_item.no_messages': { en: 'No messages yet', ru: 'Сообщений пока нет' },
+
+  // ===== CHAT CONTEXT MENU =====
+  'chat_menu.pin': { en: 'Pin chat', ru: 'Закрепить чат' },
+  'chat_menu.unpin': { en: 'Unpin chat', ru: 'Открепить чат' },
+  'chat_menu.mute': { en: 'Mute notifications', ru: 'Отключить уведомления' },
+  'chat_menu.unmute': { en: 'Unmute notifications', ru: 'Включить уведомления' },
+  'chat_menu.archive': { en: 'Archive chat', ru: 'Архивировать чат' },
+  'chat_menu.delete': { en: 'Delete chat', ru: 'Удалить чат' },
+  'chat_menu.confirm_delete': { en: 'Are you sure you want to delete this chat? This action cannot be undone.', ru: 'Вы уверены, что хотите удалить этот чат? Это действие нельзя отменить.' },
   'chat_item.image': { en: 'Image', ru: 'Изображение' },
   'chat_item.file': { en: 'File', ru: 'Файл' },
 
@@ -140,6 +149,12 @@ export const translations = {
   'settings.privacy_no_phone': { en: 'No phone number required', ru: 'Не нужен номер телефона' },
   'settings.privacy_no_ads': { en: 'No ads, no tracking, no data selling', ru: 'Без рекламы, трекинга и продажи данных' },
   'settings.your_public_key': { en: 'Your public key:', ru: 'Твой публичный ключ:' },
+  'settings.section_notifications': { en: 'Notifications', ru: 'Уведомления' },
+  'settings.notifications_desc': { en: 'Get notified about new messages even when the app is in background', ru: 'Получай уведомления о новых сообщениях, даже когда приложение в фоне' },
+  'settings.notifications_enabled': { en: 'Notifications enabled', ru: 'Уведомления включены' },
+  'settings.notifications_blocked': { en: 'Notifications blocked', ru: 'Уведомления заблокированы' },
+  'settings.notifications_enable': { en: 'Enable notifications', ru: 'Включить уведомления' },
+  'settings.notifications_blocked_help': { en: 'To enable notifications, go to your browser settings and allow notifications for this site', ru: 'Чтобы включить уведомления, перейди в настройки браузера и разрешиуведомления для этого сайта' },
   'settings.signout': { en: 'Sign out', ru: 'Выйти' },
   'settings.close': { en: 'Close', ru: 'Закрыть' },
   'settings.save': { en: 'Save', ru: 'Сохранить' },

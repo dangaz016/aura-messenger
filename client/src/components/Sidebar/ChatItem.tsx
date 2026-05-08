@@ -1,6 +1,8 @@
-import { Hash, Users, Timer } from 'lucide-react';
+import { useState } from 'react';
+import { Hash, Users, Timer, Trash2, Archive, Pin, PinOff, Bell, BellOff } from 'lucide-react';
 import { Chat, UserStatus } from '../../types';
 import { Avatar } from '../Common/Avatar';
+import { ContextMenu } from '../Common/ContextMenu';
 import { formatChatListTime } from '../../utils/formatters';
 import { useT } from '../../contexts/LanguageContext';
 
@@ -13,6 +15,7 @@ interface ChatItemProps {
 
 export function ChatItem({ chat, active, onClick, userStatus }: ChatItemProps) {
   const { t, lang } = useT();
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const lastMsg = chat.lastMessage;
   const isOnline = chat.type === 'direct' && (userStatus?.isOnline ?? false);
   const auraMode = chat.type === 'direct' ? userStatus?.auraMode ?? chat.otherUser?.auraMode : undefined;
@@ -26,13 +29,63 @@ export function ChatItem({ chat, active, onClick, userStatus }: ChatItemProps) {
 
   const isEcho = !!lastMsg?.echoExpiresAt;
 
+  function handleContextMenu(e: React.MouseEvent) {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  }
+
+  function handleDeleteChat() {
+    if (confirm(t('chat_menu.confirm_delete'))) {
+      // TODO: Implement delete API
+      console.log('Delete chat:', chat.id);
+    }
+  }
+
+  function handleArchiveChat() {
+    console.log('Archive chat:', chat.id);
+  }
+
+  function handlePinChat() {
+    console.log('Pin/unpin chat:', chat.id);
+  }
+
+  function handleMuteChat() {
+    console.log('Mute/unmute chat:', chat.id);
+  }
+
+  const contextMenuItems = [
+    {
+      label: t('chat_menu.pin'),
+      icon: Pin,
+      onClick: handlePinChat,
+    },
+    {
+      label: t('chat_menu.mute'),
+      icon: BellOff,
+      onClick: handleMuteChat,
+    },
+    {
+      label: t('chat_menu.archive'),
+      icon: Archive,
+      onClick: handleArchiveChat,
+    },
+    {
+      label: t('chat_menu.delete'),
+      icon: Trash2,
+      onClick: handleDeleteChat,
+      danger: true,
+    },
+  ];
+
   return (
-    <button
-      onClick={onClick}
-      className={`w-full flex items-center gap-3 px-3 py-3 transition-all duration-200 text-left hover:scale-[1.02] active:scale-[0.98] ${
-        active ? 'bg-aura-primary-dim' : 'hover:bg-aura-elevated'
-      }`}
-    >
+    <>
+      <button
+        onClick={onClick}
+        onContextMenu={handleContextMenu}
+        className={`w-full flex items-center gap-3 px-3 py-3 transition-all duration-200 text-left hover:scale-[1.02] active:scale-[0.98] ${
+          active ? 'bg-aura-primary-dim' : 'hover:bg-aura-elevated'
+        }`}
+      >
       <div className="relative">
         {chat.type === 'space' ? (
           <div
@@ -85,6 +138,15 @@ export function ChatItem({ chat, active, onClick, userStatus }: ChatItemProps) {
           )}
         </div>
       </div>
-    </button>
+      </button>
+
+      {contextMenu && (
+        <ContextMenu
+          items={contextMenuItems}
+          position={contextMenu}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
+    </>
   );
 }

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { X, LogOut, Palette, ShieldCheck, Eye, EyeOff, BellOff, Check, Moon, Sparkles, Waves } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, LogOut, Palette, ShieldCheck, Eye, EyeOff, BellOff, Check, Moon, Sparkles, Waves, Bell } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useChat } from '../../contexts/ChatContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -8,6 +8,7 @@ import { TranslationKey } from '../../i18n/translations';
 import { Avatar } from '../Common/Avatar';
 import { api } from '../../services/api';
 import { AuraMode } from '../../types';
+import { requestNotificationPermission } from '../../utils/notifications';
 
 const COLORS = [
   '#7C3AED', '#A78BFA', '#EC4899', '#F472B6',
@@ -43,6 +44,13 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [color, setColor] = useState(user?.avatarColor || '#7C3AED');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+
+  useEffect(() => {
+    if ('Notification' in window) {
+      setNotificationPermission(Notification.permission);
+    }
+  }, []);
 
   if (!user) return null;
 
@@ -60,6 +68,11 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
   async function handleAuraMode(mode: AuraMode) {
     await updateAuraMode(mode);
+  }
+
+  async function handleRequestNotifications() {
+    const permission = await requestNotificationPermission();
+    setNotificationPermission(permission);
   }
 
   return (
@@ -199,6 +212,41 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 {user.publicKey.slice(0, 32)}...
               </div>
             )}
+          </Section>
+
+          {/* Notifications */}
+          <Section title={t('settings.section_notifications')} icon={<Bell className="w-4 h-4" />}>
+            <div className="space-y-3">
+              <div className="text-sm text-aura-text-dim">
+                {t('settings.notifications_desc')}
+              </div>
+              
+              {notificationPermission === 'granted' ? (
+                <div className="flex items-center gap-2 text-sm text-aura-online">
+                  <Check className="w-4 h-4" />
+                  {t('settings.notifications_enabled')}
+                </div>
+              ) : notificationPermission === 'denied' ? (
+                <div className="flex items-center gap-2 text-sm text-aura-dnd">
+                  <BellOff className="w-4 h-4" />
+                  {t('settings.notifications_blocked')}
+                </div>
+              ) : (
+                <button
+                  onClick={handleRequestNotifications}
+                  className="btn-primary"
+                >
+                  <Bell className="w-4 h-4 inline mr-2" />
+                  {t('settings.notifications_enable')}
+                </button>
+              )}
+
+              {notificationPermission === 'denied' && (
+                <div className="px-3 py-2 rounded-lg bg-aura-dnd/10 border border-aura-dnd/30 text-xs text-aura-text-dim">
+                  {t('settings.notifications_blocked_help')}
+                </div>
+              )}
+            </div>
           </Section>
 
           {/* Actions */}
