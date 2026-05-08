@@ -1,0 +1,21 @@
+node_modules/
+dist/
+build/
+.env
+.env.local
+.env.production
+*.log
+.vite/
+tsconfig.tsbuildinfo
+
+# Backend
+server/data/
+server/uploads/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/

@@ -1,0 +1,120 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html, body, #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    background-color: #0d0d1a;
+    color: #e8e8f0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow: hidden;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(124, 58, 237, 0.2);
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(124, 58, 237, 0.4);
+  }
+
+  input, textarea, button {
+    font-family: inherit;
+  }
+
+  button {
+    cursor: pointer;
+    border: none;
+    background: none;
+    color: inherit;
+  }
+
+  input:focus, textarea:focus {
+    outline: none;
+  }
+}
+
+@layer components {
+  .gradient-aura {
+    background: linear-gradient(135deg, #7C3AED 0%, #A78BFA 100%);
+  }
+
+  .gradient-bg {
+    background: radial-gradient(ellipse at top, rgba(124, 58, 237, 0.15) 0%, #0d0d1a 50%);
+  }
+
+  .glow-primary {
+    box-shadow: 0 0 20px rgba(124, 58, 237, 0.3);
+  }
+
+  .btn-primary {
+    @apply bg-aura-primary hover:bg-aura-primary-light transition-colors px-4 py-2 rounded-lg font-medium text-white;
+  }
+
+  .btn-secondary {
+    @apply bg-aura-surface2 hover:bg-aura-elevated transition-colors px-4 py-2 rounded-lg font-medium border border-aura-border;
+  }
+
+  .input-aura {
+    @apply bg-aura-surface2 border border-aura-border rounded-lg px-4 py-2 text-aura-text placeholder-aura-text-muted focus:border-aura-primary transition-colors;
+  }
+
+  .card {
+    @apply bg-aura-surface border border-aura-border rounded-xl;
+  }
+}
+
+.message-bubble-out {
+  background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%);
+  color: white;
+}
+
+.message-bubble-in {
+  background: #1e1e35;
+  color: #e8e8f0;
+}
+
+.echo-pulse {
+  animation: echoPulse 2s ease-in-out infinite;
+}
+
+@keyframes echoPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(245, 158, 11, 0); }
+}
+
+.typing-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  margin: 0 2px;
+  animation: typingBounce 1.4s infinite ease-in-out;
+}
+.typing-dot:nth-child(1) { animation-delay: -0.32s; }
+.typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes typingBounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+  40% { transform: scale(1); opacity: 1; }
+}

@@ -1,0 +1,20 @@
+# Render.com deployment config
+# Place at the root of your repo (or move to repo root if you push to GitHub).
+
+services:
+  - type: web
+    name: aura-server
+    runtime: node
+    rootDir: server
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    plan: free
+    envVars:
+      - key: NODE_VERSION
+        value: "22.11.0"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false   # set this manually in Render dashboard to your Netlify URL
+      - key: PORT
+        value: "10000"

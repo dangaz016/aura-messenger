@@ -1,0 +1,83 @@
+export type AuraMode = 'available' | 'ghost' | 'dnd';
+export type ChatType = 'direct' | 'group' | 'space';
+export type MessageType = 'text' | 'file' | 'image' | 'voice';
+
+export interface UserRow {
+  id: string;
+  username: string;
+  email: string | null;
+  password_hash: string;
+  display_name: string;
+  avatar_color: string;
+  public_key: string | null;
+  mood_emoji: string;
+  mood_text: string;
+  aura_mode: AuraMode;
+  created_at: number;
+  last_seen: number;
+}
+
+export interface PublicUser {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarColor: string;
+  publicKey: string | null;
+  moodEmoji: string;
+  moodText: string;
+  auraMode: AuraMode;
+  lastSeen: number;
+  createdAt: number;
+}
+
+export interface ChatRow {
+  id: string;
+  type: ChatType;
+  name: string | null;
+  description: string | null;
+  avatar_color: string;
+  created_by: string;
+  created_at: number;
+}
+
+export interface MessageRow {
+  id: string;
+  chat_id: string;
+  sender_id: string;
+  content: string;
+  type: MessageType;
+  file_id: string | null;
+  echo_duration: number | null;
+  echo_expires_at: number | null;
+  is_deleted: number;
+  created_at: number;
+  edited_at: number | null;
+}
+
+export interface JwtPayload {
+  userId: string;
+  username: string;
+}
+
+declare global {
+  namespace Express {
+    interface Request {
+      user?: JwtPayload;
+    }
+  }
+}
+
+export function rowToPublicUser(row: UserRow): PublicUser {
+  return {
+    id: row.id,
+    username: row.username,
+    displayName: row.display_name,
+    avatarColor: row.avatar_color,
+    publicKey: row.public_key,
+    moodEmoji: row.mood_emoji,
+    moodText: row.mood_text,
+    auraMode: row.aura_mode,
+    lastSeen: row.last_seen,
+    createdAt: row.created_at,
+  };
+}
