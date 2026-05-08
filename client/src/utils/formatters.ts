@@ -1,24 +1,31 @@
 import { format, formatDistanceToNow, isToday, isYesterday, differenceInMinutes } from 'date-fns';
+import { ru, enUS } from 'date-fns/locale';
+import { Lang } from '../i18n/translations';
+
+function getLocale(lang: Lang) {
+  return lang === 'ru' ? ru : enUS;
+}
 
 export function formatMessageTime(timestamp: number): string {
   const date = new Date(timestamp * 1000);
   return format(date, 'HH:mm');
 }
 
-export function formatChatListTime(timestamp: number): string {
+export function formatChatListTime(timestamp: number, lang: Lang = 'en'): string {
   const date = new Date(timestamp * 1000);
   if (isToday(date)) return format(date, 'HH:mm');
-  if (isYesterday(date)) return 'Yesterday';
+  if (isYesterday(date)) return lang === 'ru' ? 'Вчера' : 'Yesterday';
   return format(date, 'dd.MM.yy');
 }
 
-export function formatLastSeen(timestamp: number, isOnline: boolean): string {
-  if (isOnline) return 'online';
+export function formatLastSeen(timestamp: number, isOnline: boolean, lang: Lang = 'en'): string {
+  if (isOnline) return lang === 'ru' ? 'в сети' : 'online';
   const date = new Date(timestamp * 1000);
   const minsAgo = differenceInMinutes(new Date(), date);
-  if (minsAgo < 1) return 'just now';
-  if (minsAgo < 60) return `${minsAgo} min ago`;
-  return `last seen ${formatDistanceToNow(date, { addSuffix: true })}`;
+  if (minsAgo < 1) return lang === 'ru' ? 'только что' : 'just now';
+  if (minsAgo < 60) return lang === 'ru' ? `${minsAgo} мин назад` : `${minsAgo} min ago`;
+  const distance = formatDistanceToNow(date, { addSuffix: true, locale: getLocale(lang) });
+  return lang === 'ru' ? `был(а) ${distance}` : `last seen ${distance}`;
 }
 
 export function formatEchoTime(echoExpiresAt: number): string {

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Timer, Trash2, Smile, Download, FileText, Image as ImageIcon } from 'lucide-react';
+import { Timer, Trash2, Smile, Download, FileText } from 'lucide-react';
 import { Message as MessageType } from '../../types';
 import { useChat } from '../../contexts/ChatContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useT } from '../../contexts/LanguageContext';
 import { api } from '../../services/api';
 import { formatMessageTime, formatEchoTime } from '../../utils/formatters';
 
@@ -18,6 +19,7 @@ interface MessageProps {
 export function Message({ message, isOwn, isFirstInGroup, showSender }: MessageProps) {
   const { user } = useAuth();
   const { deleteMessage, toggleReaction } = useChat();
+  const { t } = useT();
   const [showActions, setShowActions] = useState(false);
   const [showReactions, setShowReactions] = useState(false);
   const [, setTick] = useState(0);
@@ -87,7 +89,7 @@ export function Message({ message, isOwn, isFirstInGroup, showSender }: MessageP
                 <FileText className="w-8 h-8 flex-shrink-0" />
                 <div className="min-w-0">
                   <div className="text-sm font-medium truncate">{message.fileName}</div>
-                  <div className="text-xs opacity-70">Click to download</div>
+                  <div className="text-xs opacity-70">{t('message.click_download')}</div>
                 </div>
                 <Download className="w-4 h-4 flex-shrink-0" />
               </a>
@@ -114,7 +116,7 @@ export function Message({ message, isOwn, isFirstInGroup, showSender }: MessageP
               <button
                 onClick={() => setShowReactions(!showReactions)}
                 className="p-1.5 bg-aura-elevated rounded-full hover:bg-aura-primary text-aura-text-dim hover:text-white transition-colors"
-                title="React"
+                title={t('message.react')}
               >
                 <Smile className="w-3.5 h-3.5" />
               </button>
@@ -122,7 +124,7 @@ export function Message({ message, isOwn, isFirstInGroup, showSender }: MessageP
                 <button
                   onClick={() => deleteMessage(message.id)}
                   className="p-1.5 bg-aura-elevated rounded-full hover:bg-aura-dnd text-aura-text-dim hover:text-white transition-colors"
-                  title="Delete"
+                  title={t('message.delete')}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>

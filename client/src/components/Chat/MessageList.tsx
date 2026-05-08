@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useChat } from '../../contexts/ChatContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useT } from '../../contexts/LanguageContext';
 import { Message } from './Message';
 
 interface MessageListProps {
@@ -10,6 +11,7 @@ interface MessageListProps {
 export function MessageList({ chatId }: MessageListProps) {
   const { messages, typingUsers, chats } = useChat();
   const { user } = useAuth();
+  const { t } = useT();
   const containerRef = useRef<HTMLDivElement>(null);
   const messageList = messages.get(chatId) || [];
 
@@ -31,8 +33,8 @@ export function MessageList({ chatId }: MessageListProps) {
       <div className="flex-1 flex items-center justify-center text-aura-text-muted text-sm">
         <div className="text-center">
           <div className="text-2xl mb-2">✨</div>
-          <div>No messages yet</div>
-          <div className="text-xs mt-1">Send the first one to start the conversation</div>
+          <div>{t('msglist.empty_title')}</div>
+          <div className="text-xs mt-1">{t('msglist.empty_hint')}</div>
         </div>
       </div>
     );
@@ -62,7 +64,7 @@ export function MessageList({ chatId }: MessageListProps) {
             <span className="typing-dot" />
             <span className="typing-dot" />
           </div>
-          <span className="text-xs">{typingNames.join(', ')} typing...</span>
+          <span className="text-xs">{typingNames.join(', ')} {t('chatwindow.typing')}</span>
         </div>
       )}
     </div>

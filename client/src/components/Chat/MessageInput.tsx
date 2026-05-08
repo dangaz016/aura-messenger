@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Paperclip, Timer, Smile, X } from 'lucide-react';
 import { useChat } from '../../contexts/ChatContext';
+import { useT } from '../../contexts/LanguageContext';
 import { api } from '../../services/api';
-import { formatFileSize } from '../../utils/formatters';
 
-const ECHO_OPTIONS: { label: string; value: number | null }[] = [
-  { label: 'Off', value: null },
+const getEchoOptions = (offLabel: string): { label: string; value: number | null }[] => [
+  { label: offLabel, value: null },
   { label: '5s', value: 5 },
   { label: '30s', value: 30 },
   { label: '1m', value: 60 },
@@ -23,6 +23,8 @@ interface MessageInputProps {
 
 export function MessageInput({ chatId }: MessageInputProps) {
   const { sendMessage, startTyping, stopTyping } = useChat();
+  const { t } = useT();
+  const ECHO_OPTIONS = getEchoOptions(t('input.echo_off'));
   const [text, setText] = useState('');
   const [echoDuration, setEchoDuration] = useState<number | null>(null);
   const [showEcho, setShowEcho] = useState(false);
@@ -73,7 +75,7 @@ export function MessageInput({ chatId }: MessageInputProps) {
     if (!file) return;
 
     setUploading(true);
-    setUploadProgress(`Uploading ${file.name}...`);
+    setUploadProgress(`${t('input.uploading')} ${file.name}...`);
     try {
       const uploaded = await api.uploadFile(file);
       const isImage = file.type.startsWith('image/');
@@ -83,7 +85,7 @@ export function MessageInput({ chatId }: MessageInputProps) {
         echoDuration: echoDuration ?? undefined,
       });
     } catch {
-      setUploadProgress('Upload failed');
+      setUploadProgress(t('input.upload_failed'));
       setTimeout(() => setUploadProgress(''), 2000);
     } finally {
       setUploading(false);
@@ -104,7 +106,7 @@ export function MessageInput({ chatId }: MessageInputProps) {
       {echoDuration && (
         <div className="px-4 pt-2 -mb-1 flex items-center gap-2 text-xs text-aura-ghost">
           <Timer className="w-3 h-3" />
-          <span>Echo mode: messages disappear after {echoDuration < 60 ? `${echoDuration}s` : echoDuration < 3600 ? `${echoDuration/60}m` : `${echoDuration/3600}h`}</span>
+          <span>{t('input.echo_active')} {echoDuration < 60 ? `${echoDuration}s` : echoDuration < 3600 ? `${echoDuration/60}m` : `${echoDuration/3600}h`}</span>
           <button onClick={() => setEchoDuration(null)} className="ml-auto p-1 hover:bg-aura-elevated rounded">
             <X className="w-3 h-3" />
           </button>
@@ -128,7 +130,7 @@ export function MessageInput({ chatId }: MessageInputProps) {
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
           className="p-2 rounded-lg hover:bg-aura-elevated text-aura-text-dim hover:text-aura-text transition-colors disabled:opacity-50"
-          title="Attach file"
+          title={t('input.attach')}
         >
           <Paperclip className="w-5 h-5" />
         </button>
@@ -139,13 +141,13 @@ export function MessageInput({ chatId }: MessageInputProps) {
             className={`p-2 rounded-lg transition-colors ${
               echoDuration ? 'text-aura-ghost bg-aura-ghost/10' : 'text-aura-text-dim hover:text-aura-text hover:bg-aura-elevated'
             }`}
-            title="Echo (self-destruct)"
+            title={t('input.echo')}
           >
             <Timer className="w-5 h-5" />
           </button>
           {showEcho && (
             <div className="absolute bottom-full mb-2 left-0 bg-aura-elevated border border-aura-border rounded-xl p-2 flex flex-col gap-1 shadow-lg z-10 min-w-[120px]">
-              <div className="text-xs text-aura-text-muted px-2 py-1">Self-destruct timer</div>
+              <div className="text-xs text-aura-text-muted px-2 py-1">{t('input.echo_timer')}</div>
               {ECHO_OPTIONS.map(opt => (
                 <button
                   key={opt.label}
@@ -166,7 +168,7 @@ export function MessageInput({ chatId }: MessageInputProps) {
             value={text}
             onChange={(e) => handleTextChange(e.target.value)}
             onKeyDown={handleKey}
-            placeholder="Type a message..."
+            placeholder={t('input.placeholder')}
             rows={1}
             className="input-aura w-full resize-none max-h-32 py-2.5"
             style={{ minHeight: '42px' }}
@@ -177,7 +179,7 @@ export function MessageInput({ chatId }: MessageInputProps) {
           <button
             onClick={() => setShowEmoji(!showEmoji)}
             className="p-2 rounded-lg hover:bg-aura-elevated text-aura-text-dim hover:text-aura-text transition-colors"
-            title="Emoji"
+            title={t('input.emoji')}
           >
             <Smile className="w-5 h-5" />
           </button>
@@ -200,7 +202,7 @@ export function MessageInput({ chatId }: MessageInputProps) {
           onClick={handleSend}
           disabled={!text.trim()}
           className="p-2 rounded-lg bg-aura-primary hover:bg-aura-primary-light disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          title="Send"
+          title={t('input.send')}
         >
           <Send className="w-5 h-5 text-white" />
         </button>

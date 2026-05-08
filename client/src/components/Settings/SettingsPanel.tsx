@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { X, LogOut, Palette, ShieldCheck, Eye, EyeOff, BellOff, Check, Moon, Sparkles, Waves } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useChat } from '../../contexts/ChatContext';
-import { useTheme, Theme } from '../../contexts/ThemeContext';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useT } from '../../contexts/LanguageContext';
+import { TranslationKey } from '../../i18n/translations';
 import { Avatar } from '../Common/Avatar';
 import { api } from '../../services/api';
 import { AuraMode } from '../../types';
@@ -13,17 +15,17 @@ const COLORS = [
   '#EF4444', '#8B5CF6', '#14B8A6', '#F97316',
 ];
 
-const MOOD_PRESETS = [
-  { emoji: '👋', text: 'Available' },
-  { emoji: '💭', text: 'Thinking' },
-  { emoji: '☕', text: 'Coffee break' },
-  { emoji: '💻', text: 'Working' },
-  { emoji: '🎮', text: 'Gaming' },
-  { emoji: '🎵', text: 'Listening to music' },
-  { emoji: '🛌', text: 'Sleeping' },
-  { emoji: '🌴', text: 'On vacation' },
-  { emoji: '📚', text: 'Studying' },
-  { emoji: '🎬', text: 'Watching movie' },
+const MOOD_PRESETS: { emoji: string; key: TranslationKey }[] = [
+  { emoji: '👋', key: 'mood.available' },
+  { emoji: '💭', key: 'mood.thinking' },
+  { emoji: '☕', key: 'mood.coffee' },
+  { emoji: '💻', key: 'mood.working' },
+  { emoji: '🎮', key: 'mood.gaming' },
+  { emoji: '🎵', key: 'mood.music' },
+  { emoji: '🛌', key: 'mood.sleeping' },
+  { emoji: '🌴', key: 'mood.vacation' },
+  { emoji: '📚', key: 'mood.studying' },
+  { emoji: '🎬', key: 'mood.movie' },
 ];
 
 interface SettingsPanelProps {
@@ -34,6 +36,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const { user, updateUser, logout } = useAuth();
   const { updateAuraMode } = useChat();
   const { theme, setTheme } = useTheme();
+  const { t } = useT();
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [moodEmoji, setMoodEmoji] = useState(user?.moodEmoji || '👋');
   const [moodText, setMoodText] = useState(user?.moodText || 'Available');
@@ -63,7 +66,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto animate-fade-in">
       <div className="card w-full max-w-2xl my-8 animate-slide-up">
         <div className="flex items-center justify-between p-6 border-b border-aura-border">
-          <h2 className="text-2xl font-bold">Settings</h2>
+          <h2 className="text-2xl font-bold">{t('settings.title')}</h2>
           <button onClick={onClose} className="p-2 hover:bg-aura-elevated rounded-lg">
             <X className="w-5 h-5" />
           </button>
@@ -71,12 +74,12 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
         <div className="p-6 space-y-8">
           {/* Profile */}
-          <Section title="Profile" icon={<Sparkles className="w-4 h-4" />}>
+          <Section title={t('settings.section_profile')} icon={<Sparkles className="w-4 h-4" />}>
             <div className="flex items-start gap-4">
               <Avatar name={displayName} color={color} size={80} emoji={moodEmoji} showStatus={false} />
               <div className="flex-1 space-y-3">
                 <div>
-                  <Label>Display name</Label>
+                  <Label>{t('settings.display_name')}</Label>
                   <input
                     type="text"
                     value={displayName}
@@ -86,14 +89,14 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                   />
                 </div>
                 <div>
-                  <Label>Username (cannot change)</Label>
+                  <Label>{t('settings.username_readonly')}</Label>
                   <input value={`@${user.username}`} readOnly className="input-aura w-full opacity-60" />
                 </div>
               </div>
             </div>
 
             <div className="mt-4">
-              <Label>Avatar color</Label>
+              <Label>{t('settings.avatar_color')}</Label>
               <div className="flex flex-wrap gap-2">
                 {COLORS.map(c => (
                   <button
@@ -108,7 +111,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
           </Section>
 
           {/* Mood */}
-          <Section title="Mood Status" icon={<Sparkles className="w-4 h-4" />}>
+          <Section title={t('settings.section_mood')} icon={<Sparkles className="w-4 h-4" />}>
             <div className="flex items-center gap-2 mb-3">
               <input
                 type="text"
@@ -121,7 +124,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 type="text"
                 value={moodText}
                 onChange={(e) => setMoodText(e.target.value)}
-                placeholder="What's on your mind?"
+                placeholder={t('settings.mood_placeholder')}
                 className="input-aura flex-1"
                 maxLength={50}
               />
@@ -129,70 +132,70 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
             <div className="grid grid-cols-2 gap-2">
               {MOOD_PRESETS.map(m => (
                 <button
-                  key={m.text}
-                  onClick={() => { setMoodEmoji(m.emoji); setMoodText(m.text); }}
+                  key={m.key}
+                  onClick={() => { setMoodEmoji(m.emoji); setMoodText(t(m.key)); }}
                   className="flex items-center gap-2 px-3 py-2 rounded-lg bg-aura-surface2 hover:bg-aura-elevated text-sm text-left"
                 >
                   <span className="text-lg">{m.emoji}</span>
-                  <span className="truncate">{m.text}</span>
+                  <span className="truncate">{t(m.key)}</span>
                 </button>
               ))}
             </div>
           </Section>
 
           {/* Aura Mode */}
-          <Section title="Aura Mode" icon={<ShieldCheck className="w-4 h-4" />}>
+          <Section title={t('settings.section_aura')} icon={<ShieldCheck className="w-4 h-4" />}>
             <p className="text-xs text-aura-text-dim mb-3">
-              Control your visibility and notifications. Privacy is the priority.
+              {t('settings.aura_subtitle')}
             </p>
             <div className="space-y-2">
               <ModeOption
                 active={user.auraMode === 'available'}
                 onClick={() => handleAuraMode('available')}
                 icon={<Eye className="w-5 h-5 text-aura-online" />}
-                title="Available"
-                desc="Show as online, receive all notifications"
+                title={t('settings.mode_available')}
+                desc={t('settings.mode_available_desc')}
               />
               <ModeOption
                 active={user.auraMode === 'ghost'}
                 onClick={() => handleAuraMode('ghost')}
                 icon={<EyeOff className="w-5 h-5 text-aura-ghost" />}
-                title="Ghost mode"
-                desc="Read messages without showing online. Stealth, but real."
+                title={t('settings.mode_ghost')}
+                desc={t('settings.mode_ghost_desc')}
               />
               <ModeOption
                 active={user.auraMode === 'dnd'}
                 onClick={() => handleAuraMode('dnd')}
                 icon={<BellOff className="w-5 h-5 text-aura-dnd" />}
-                title="Do not disturb"
-                desc="Silence all notifications, others see your status"
+                title={t('settings.mode_dnd')}
+                desc={t('settings.mode_dnd_desc')}
               />
             </div>
           </Section>
 
           {/* Theme */}
-          <Section title="Theme" icon={<Palette className="w-4 h-4" />}>
+          <Section title={t('settings.section_theme')} icon={<Palette className="w-4 h-4" />}>
             <div className="grid grid-cols-3 gap-2">
               <ThemeOption active={theme === 'dark'} onClick={() => setTheme('dark')}
-                icon={<Moon className="w-5 h-5" />} label="Dark" gradient="from-[#7C3AED] to-[#0d0d1a]" />
+                icon={<Moon className="w-5 h-5" />} label={t('settings.theme_dark')} gradient="from-[#7C3AED] to-[#0d0d1a]" />
               <ThemeOption active={theme === 'midnight'} onClick={() => setTheme('midnight')}
-                icon={<Sparkles className="w-5 h-5" />} label="Midnight" gradient="from-[#A78BFA] to-[#000000]" />
+                icon={<Sparkles className="w-5 h-5" />} label={t('settings.theme_midnight')} gradient="from-[#A78BFA] to-[#000000]" />
               <ThemeOption active={theme === 'aurora'} onClick={() => setTheme('aurora')}
-                icon={<Waves className="w-5 h-5" />} label="Aurora" gradient="from-[#06B6D4] to-[#0a1a1f]" />
+                icon={<Waves className="w-5 h-5" />} label={t('settings.theme_aurora')} gradient="from-[#06B6D4] to-[#0a1a1f]" />
             </div>
           </Section>
 
           {/* Privacy */}
-          <Section title="Privacy" icon={<ShieldCheck className="w-4 h-4" />}>
+          <Section title={t('settings.section_privacy')} icon={<ShieldCheck className="w-4 h-4" />}>
             <div className="space-y-2 text-sm text-aura-text-dim">
-              <div className="flex items-center gap-2"><Check className="w-4 h-4 text-aura-online" />End-to-end encryption enabled</div>
-              <div className="flex items-center gap-2"><Check className="w-4 h-4 text-aura-online" />Keys stored locally on this device</div>
-              <div className="flex items-center gap-2"><Check className="w-4 h-4 text-aura-online" />No phone number required</div>
-              <div className="flex items-center gap-2"><Check className="w-4 h-4 text-aura-online" />No ads, no tracking, no data selling</div>
+              <div className="flex items-center gap-2"><Check className="w-4 h-4 text-aura-online" />{t('settings.privacy_e2e')}</div>
+              <div className="flex items-center gap-2"><Check className="w-4 h-4 text-aura-online" />{t('settings.privacy_keys')}</div>
+              <div className="flex items-center gap-2"><Check className="w-4 h-4 text-aura-online" />{t('settings.privacy_no_phone')}</div>
+              <div className="flex items-center gap-2"><Check className="w-4 h-4 text-aura-online" />{t('settings.privacy_no_ads')}</div>
             </div>
             {user.publicKey && (
               <div className="mt-3 px-3 py-2 rounded-lg bg-aura-surface2 text-xs font-mono break-all text-aura-text-muted">
-                <span className="text-aura-text-dim">Your public key: </span>
+                <span className="text-aura-text-dim">{t('settings.your_public_key')} </span>
                 {user.publicKey.slice(0, 32)}...
               </div>
             )}
@@ -202,12 +205,12 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
           <div className="flex justify-between items-center pt-4 border-t border-aura-border">
             <button onClick={logout} className="flex items-center gap-2 text-aura-dnd hover:text-red-400 px-3 py-2 rounded-lg hover:bg-aura-dnd/10 transition-colors">
               <LogOut className="w-4 h-4" />
-              <span className="text-sm font-medium">Sign out</span>
+              <span className="text-sm font-medium">{t('settings.signout')}</span>
             </button>
             <div className="flex gap-2">
-              <button onClick={onClose} className="btn-secondary">Close</button>
+              <button onClick={onClose} className="btn-secondary">{t('settings.close')}</button>
               <button onClick={handleSave} disabled={saving} className="btn-primary min-w-24">
-                {saving ? 'Saving...' : saved ? '✓ Saved' : 'Save'}
+                {saving ? t('settings.saving') : saved ? t('settings.saved') : t('settings.save')}
               </button>
             </div>
           </div>

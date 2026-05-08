@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { Phone, Video, MoreVertical, Hash, Users, ShieldCheck } from 'lucide-react';
 import { useChat } from '../../contexts/ChatContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useT } from '../../contexts/LanguageContext';
 import { Avatar } from '../Common/Avatar';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
@@ -10,6 +11,7 @@ import { formatLastSeen } from '../../utils/formatters';
 export function ChatWindow() {
   const { user } = useAuth();
   const { chats, activeChatId, loadMessages, userStatuses, typingUsers } = useChat();
+  const { t, lang } = useT();
 
   const activeChat = useMemo(() => chats.find(c => c.id === activeChatId), [chats, activeChatId]);
 
@@ -24,26 +26,26 @@ export function ChatWindow() {
           <div className="inline-flex items-center justify-center w-24 h-24 rounded-3xl gradient-aura glow-primary mb-6">
             <ShieldCheck className="w-12 h-12 text-white" strokeWidth={2} />
           </div>
-          <h2 className="text-2xl font-bold mb-2">Welcome to Aura</h2>
+          <h2 className="text-2xl font-bold mb-2">{t('chatwindow.welcome_title')}</h2>
           <p className="text-aura-text-dim mb-6">
-            Select a chat to start messaging, or create a new one. Everything you send is end-to-end encrypted.
+            {t('chatwindow.welcome_text')}
           </p>
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div className="card p-3">
-              <div className="font-medium mb-1">Aura Modes</div>
-              <div className="text-aura-text-dim text-xs">Ghost, DND, or Available</div>
+              <div className="font-medium mb-1">{t('chatwindow.feature_modes_title')}</div>
+              <div className="text-aura-text-dim text-xs">{t('chatwindow.feature_modes_desc')}</div>
             </div>
             <div className="card p-3">
-              <div className="font-medium mb-1">Echo Messages</div>
-              <div className="text-aura-text-dim text-xs">Self-destructing texts</div>
+              <div className="font-medium mb-1">{t('chatwindow.feature_echo_title')}</div>
+              <div className="text-aura-text-dim text-xs">{t('chatwindow.feature_echo_desc')}</div>
             </div>
             <div className="card p-3">
-              <div className="font-medium mb-1">Spaces</div>
-              <div className="text-aura-text-dim text-xs">Channels meet forums</div>
+              <div className="font-medium mb-1">{t('chatwindow.feature_spaces_title')}</div>
+              <div className="text-aura-text-dim text-xs">{t('chatwindow.feature_spaces_desc')}</div>
             </div>
             <div className="card p-3">
-              <div className="font-medium mb-1">Mood Status</div>
-              <div className="text-aura-text-dim text-xs">Express yourself</div>
+              <div className="font-medium mb-1">{t('chatwindow.feature_mood_title')}</div>
+              <div className="text-aura-text-dim text-xs">{t('chatwindow.feature_mood_desc')}</div>
             </div>
           </div>
         </div>
@@ -63,15 +65,15 @@ export function ChatWindow() {
 
   let subtitle = '';
   if (activeChat.type === 'direct') {
-    if (typingNames.length > 0) subtitle = 'typing...';
-    else if (auraMode === 'ghost' && !isOnline) subtitle = 'last seen recently';
-    else subtitle = formatLastSeen(lastSeen, isOnline);
+    if (typingNames.length > 0) subtitle = t('chatwindow.typing');
+    else if (auraMode === 'ghost' && !isOnline) subtitle = t('chatwindow.last_seen_recently');
+    else subtitle = formatLastSeen(lastSeen, isOnline, lang);
   } else if (activeChat.type === 'group') {
     subtitle = typingNames.length > 0
-      ? `${typingNames.join(', ')} typing...`
-      : `${activeChat.members.length} members`;
+      ? `${typingNames.join(', ')} ${t('chatwindow.typing')}`
+      : `${activeChat.members.length} ${t('chatwindow.members')}`;
   } else {
-    subtitle = activeChat.description || `${activeChat.members.length} members`;
+    subtitle = activeChat.description || `${activeChat.members.length} ${t('chatwindow.members')}`;
   }
 
   return (
@@ -118,11 +120,11 @@ export function ChatWindow() {
         <div className="flex items-center gap-1">
           {activeChat.type === 'direct' && (
             <>
-              <IconBtn icon={<Phone className="w-5 h-5" />} title="Voice call" />
-              <IconBtn icon={<Video className="w-5 h-5" />} title="Video call" />
+              <IconBtn icon={<Phone className="w-5 h-5" />} title={t('chatwindow.voice_call')} />
+              <IconBtn icon={<Video className="w-5 h-5" />} title={t('chatwindow.video_call')} />
             </>
           )}
-          <IconBtn icon={<MoreVertical className="w-5 h-5" />} title="More" />
+          <IconBtn icon={<MoreVertical className="w-5 h-5" />} title={t('chatwindow.more')} />
         </div>
       </header>
 

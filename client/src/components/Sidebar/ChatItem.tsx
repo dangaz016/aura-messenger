@@ -2,6 +2,7 @@ import { Hash, Users, Timer } from 'lucide-react';
 import { Chat, UserStatus } from '../../types';
 import { Avatar } from '../Common/Avatar';
 import { formatChatListTime } from '../../utils/formatters';
+import { useT } from '../../contexts/LanguageContext';
 
 interface ChatItemProps {
   chat: Chat;
@@ -11,14 +12,15 @@ interface ChatItemProps {
 }
 
 export function ChatItem({ chat, active, onClick, userStatus }: ChatItemProps) {
+  const { t, lang } = useT();
   const lastMsg = chat.lastMessage;
   const isOnline = chat.type === 'direct' && (userStatus?.isOnline ?? false);
   const auraMode = chat.type === 'direct' ? userStatus?.auraMode ?? chat.otherUser?.auraMode : undefined;
 
   const lastMsgPreview = (() => {
-    if (!lastMsg) return chat.type === 'space' ? chat.description || 'Welcome to the space' : 'No messages yet';
-    if (lastMsg.type === 'image') return '🖼 Image';
-    if (lastMsg.type === 'file') return '📎 File';
+    if (!lastMsg) return chat.type === 'space' ? chat.description || t('chat_item.welcome_space') : t('chat_item.no_messages');
+    if (lastMsg.type === 'image') return '🖼 ' + t('chat_item.image');
+    if (lastMsg.type === 'file') return '📎 ' + t('chat_item.file');
     return lastMsg.content.length > 50 ? lastMsg.content.slice(0, 50) + '…' : lastMsg.content;
   })();
 
@@ -62,7 +64,7 @@ export function ChatItem({ chat, active, onClick, userStatus }: ChatItemProps) {
           <div className="font-medium truncate text-sm">{chat.name || 'Unknown'}</div>
           {lastMsg && (
             <div className="text-xs text-aura-text-muted flex-shrink-0">
-              {formatChatListTime(lastMsg.createdAt)}
+              {formatChatListTime(lastMsg.createdAt, lang)}
             </div>
           )}
         </div>

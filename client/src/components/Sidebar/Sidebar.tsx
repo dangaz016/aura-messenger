@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Search, Plus, Settings, Compass, MessageCircle, Hash } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useChat } from '../../contexts/ChatContext';
+import { useT } from '../../contexts/LanguageContext';
 import { Avatar } from '../Common/Avatar';
 import { ChatItem } from './ChatItem';
 import { NewChatModal } from './NewChatModal';
@@ -15,6 +16,7 @@ interface SidebarProps {
 export function Sidebar({ onOpenSettings, view, setView }: SidebarProps) {
   const { user } = useAuth();
   const { chats, activeChatId, setActiveChatId, userStatuses } = useChat();
+  const { t } = useT();
   const [search, setSearch] = useState('');
   const [showNewChat, setShowNewChat] = useState(false);
 
@@ -35,7 +37,7 @@ export function Sidebar({ onOpenSettings, view, setView }: SidebarProps) {
           <button
             onClick={onOpenSettings}
             className="hover:opacity-80 transition-opacity"
-            title="Open settings"
+            title={t('sidebar.open_settings')}
           >
             {user && (
               <Avatar
@@ -59,7 +61,7 @@ export function Sidebar({ onOpenSettings, view, setView }: SidebarProps) {
           <button
             onClick={onOpenSettings}
             className="p-2 rounded-lg hover:bg-aura-elevated transition-colors text-aura-text-dim hover:text-aura-text"
-            title="Settings"
+            title={t('sidebar.settings')}
           >
             <Settings className="w-5 h-5" />
           </button>
@@ -70,14 +72,14 @@ export function Sidebar({ onOpenSettings, view, setView }: SidebarProps) {
             active={view === 'chats'}
             onClick={() => setView('chats')}
             icon={<MessageCircle className="w-4 h-4" />}
-            label="Chats"
+            label={t('sidebar.chats')}
             badge={totalUnread}
           />
           <TabButton
             active={view === 'spaces'}
             onClick={() => setView('spaces')}
             icon={<Compass className="w-4 h-4" />}
-            label="Spaces"
+            label={t('sidebar.spaces')}
             badge={totalSpaceUnread}
           />
         </div>
@@ -89,14 +91,14 @@ export function Sidebar({ onOpenSettings, view, setView }: SidebarProps) {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder={view === 'spaces' ? 'Search spaces...' : 'Search chats...'}
+              placeholder={view === 'spaces' ? t('sidebar.search_spaces') : t('sidebar.search_chats')}
               className="input-aura w-full pl-10 py-2 text-sm"
             />
           </div>
           <button
             onClick={() => setShowNewChat(true)}
             className="bg-aura-primary hover:bg-aura-primary-light transition-colors p-2 rounded-lg"
-            title={view === 'spaces' ? 'Create space' : 'New chat'}
+            title={view === 'spaces' ? t('sidebar.create_space') : t('sidebar.new_chat')}
           >
             <Plus className="w-5 h-5" />
           </button>
@@ -108,14 +110,14 @@ export function Sidebar({ onOpenSettings, view, setView }: SidebarProps) {
               {view === 'spaces' ? (
                 <>
                   <Hash className="w-12 h-12 mx-auto mb-2 opacity-40" />
-                  <div>No spaces yet</div>
-                  <div className="text-xs mt-1">Create one to start a community</div>
+                  <div>{t('sidebar.no_spaces')}</div>
+                  <div className="text-xs mt-1">{t('sidebar.no_spaces_hint')}</div>
                 </>
               ) : (
                 <>
                   <MessageCircle className="w-12 h-12 mx-auto mb-2 opacity-40" />
-                  <div>No chats yet</div>
-                  <div className="text-xs mt-1">Click + to start a conversation</div>
+                  <div>{t('sidebar.no_chats')}</div>
+                  <div className="text-xs mt-1">{t('sidebar.no_chats_hint')}</div>
                 </>
               )}
             </div>

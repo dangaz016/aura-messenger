@@ -3,6 +3,7 @@ import { X, Search, MessageCircle, Users, Hash, Check } from 'lucide-react';
 import { User } from '../../types';
 import { api } from '../../services/api';
 import { useChat } from '../../contexts/ChatContext';
+import { useT } from '../../contexts/LanguageContext';
 import { Avatar } from '../Common/Avatar';
 
 interface NewChatModalProps {
@@ -12,6 +13,7 @@ interface NewChatModalProps {
 
 export function NewChatModal({ mode, onClose }: NewChatModalProps) {
   const { createDirectChat, createGroupChat, createSpace, setActiveChatId } = useChat();
+  const { t } = useT();
   const [type, setType] = useState<'direct' | 'group' | 'space'>(mode === 'space' ? 'space' : 'direct');
   const [search, setSearch] = useState('');
   const [users, setUsers] = useState<User[]>([]);
@@ -52,14 +54,14 @@ export function NewChatModal({ mode, onClose }: NewChatModalProps) {
     try {
       let chat;
       if (type === 'direct') {
-        if (selected.length !== 1) throw new Error('Pick a user');
+        if (selected.length !== 1) throw new Error(t('modal.error_pick_user'));
         chat = await createDirectChat(selected[0].id);
       } else if (type === 'group') {
-        if (!name.trim()) throw new Error('Name is required');
-        if (selected.length === 0) throw new Error('Add at least one member');
+        if (!name.trim()) throw new Error(t('modal.error_name_required'));
+        if (selected.length === 0) throw new Error(t('modal.error_add_member'));
         chat = await createGroupChat(name, selected.map(u => u.id), description);
       } else {
-        if (!name.trim()) throw new Error('Name is required');
+        if (!name.trim()) throw new Error(t('modal.error_name_required'));
         chat = await createSpace(name, description);
       }
       setActiveChatId(chat.id);
@@ -67,8 +69,8 @@ export function NewChatModal({ mode, onClose }: NewChatModalProps) {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message
         : (err && typeof err === 'object' && 'response' in err
-          ? ((err.response as { data?: { error?: string } })?.data?.error || 'Failed to create')
-          : 'Failed to create');
+          ? ((err.response as { data?: { error?: string } })?.data?.error || t('modal.error_failed'))
+          : t('modal.error_failed'));
       setError(msg);
     } finally {
       setLoading(false);
@@ -84,7 +86,7 @@ export function NewChatModal({ mode, onClose }: NewChatModalProps) {
       <div className="card w-full max-w-md p-6 animate-slide-up">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold">
-            {type === 'direct' ? 'New chat' : type === 'group' ? 'New group' : 'New space'}
+            {type === 'direct' ? t('modal.new_chat') : type === 'group' ? t('modal.new_group') : t('modal.new_space')}
           </h2>
           <button onClick={onClose} className="p-1 hover:bg-aura-elevated rounded-lg">
             <X className="w-5 h-5" />
@@ -94,11 +96,11 @@ export function NewChatModal({ mode, onClose }: NewChatModalProps) {
         {mode !== 'space' && (
           <div className="grid grid-cols-3 gap-2 mb-4">
             <TypeButton active={type === 'direct'} onClick={() => { setType('direct'); setSelected([]); }}
-              icon={<MessageCircle className="w-4 h-4" />} label="Direct" />
+              icon={<MessageCircle className="w-4 h-4" />} label={t('modal.type_direct')} />
             <TypeButton active={type === 'group'} onClick={() => { setType('group'); setSelected([]); }}
-              icon={<Users className="w-4 h-4" />} label="Group" />
+              icon={<Users className="w-4 h-4" />} label={t('modal.type_group')} />
             <TypeButton active={type === 'space'} onClick={() => { setType('space'); setSelected([]); }}
-              icon={<Hash className="w-4 h-4" />} label="Space" />
+              icon={<Hash className="w-4 h-4" />} label={t('modal.type_space')} />
           </div>
         )}
 
@@ -108,7 +110,7 @@ export function NewChatModal({ mode, onClose }: NewChatModalProps) {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder={type === 'space' ? 'Space name' : 'Group name'}
+              placeholder={type === 'space' ? t('modal.space_name') : t('modal.group_name')}
               className="input-aura w-full"
               maxLength={50}
             />
@@ -116,7 +118,7 @@ export function NewChatModal({ mode, onClose }: NewChatModalProps) {
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Description (optional)"
+              placeholder={t('modal.description')}
               className="input-aura w-full"
               maxLength={200}
             />
@@ -146,7 +148,7 @@ export function NewChatModal({ mode, onClose }: NewChatModalProps) {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search users by name..."
+                placeholder={t('modal.search_users')}
                 className="input-aura w-full pl-10"
                 autoFocus
               />
@@ -154,7 +156,7 @@ export function NewChatModal({ mode, onClose }: NewChatModalProps) {
 
             <div className="max-h-60 overflow-y-auto -mx-2 mb-3">
               {users.length === 0 && search.length > 0 && (
-                <div className="text-center text-aura-text-muted text-sm py-4">No users found</div>
+                <div className="text-center text-aura-text-muted text-sm py-4">{t('modal.no_users')}</div>
               )}
               {users.map(u => {
                 const isSelected = selected.find(s => s.id === u.id);
@@ -188,13 +190,13 @@ export function NewChatModal({ mode, onClose }: NewChatModalProps) {
         )}
 
         <div className="flex gap-2">
-          <button onClick={onClose} className="btn-secondary flex-1">Cancel</button>
+          <button onClick={onClose} className="btn-secondary flex-1">{t('modal.cancel')}</button>
           <button
             onClick={handleCreate}
             disabled={!canCreate || loading}
             className="btn-primary flex-1 disabled:opacity-50"
           >
-            {loading ? 'Creating...' : 'Create'}
+            {loading ? t('modal.creating') : t('modal.create')}
           </button>
         </div>
       </div>

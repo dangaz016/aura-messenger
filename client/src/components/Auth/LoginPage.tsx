@@ -1,9 +1,23 @@
 import { useState } from 'react';
 import { Shield, Sparkles, Zap, Lock } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useT } from '../../contexts/LanguageContext';
+import { TranslationKey } from '../../i18n/translations';
+
+// Map server error messages to translation keys
+function mapServerError(message: string): TranslationKey | null {
+  if (!message) return null;
+  const m = message.toLowerCase();
+  if (m.includes('username already')) return 'login.error_username_taken';
+  if (m.includes('username must be')) return 'login.error_username_invalid';
+  if (m.includes('password must')) return 'login.error_password_short';
+  if (m.includes('invalid credentials')) return 'login.error_credentials';
+  return null;
+}
 
 export function LoginPage() {
   const { login, register } = useAuth();
+  const { t } = useT();
   const [isRegister, setIsRegister] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -16,16 +30,19 @@ export function LoginPage() {
     setError('');
     setLoading(true);
     try {
+      // Strip leading @ if user added it (we show @ as a prefix decoration)
+      const cleanUsername = username.replace(/^@+/, '').trim();
       if (isRegister) {
-        await register(username, password, displayName || undefined);
+        await register(cleanUsername, password, displayName || undefined);
       } else {
-        await login(username, password);
+        await login(cleanUsername, password);
       }
     } catch (err: unknown) {
       const errorMsg = err && typeof err === 'object' && 'response' in err
         ? (err.response as { data?: { error?: string } })?.data?.error
         : null;
-      setError(errorMsg || 'Something went wrong');
+      const mapped = mapServerError(errorMsg || '');
+      setError(mapped ? t(mapped) : (errorMsg || t('login.error_generic')));
     } finally {
       setLoading(false);
     }
@@ -42,61 +59,70 @@ export function LoginPage() {
             Aura
           </h1>
           <p className="text-aura-text-dim text-sm">
-            Your space. Your rules. Your aura.
+            {t('app.tagline')}
           </p>
         </div>
 
         <div className="card p-8 shadow-2xl">
           <h2 className="text-xl font-semibold mb-1">
-            {isRegister ? 'Create your aura' : 'Welcome back'}
+            {isRegister ? t('login.create_title') : t('login.welcome_back')}
           </h2>
           <p className="text-aura-text-dim text-sm mb-6">
-            {isRegister ? 'Start chatting privately in seconds' : 'Sign in to continue'}
+            {isRegister ? t('login.create_subtitle') : t('login.signin_subtitle')}
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-aura-text-dim mb-1.5 uppercase tracking-wide">
-                Username
+                {t('login.username')}
               </label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="input-aura w-full"
-                placeholder="@yourname"
-                autoComplete="username"
-                required
-              />
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-aura-text-muted pointer-events-none select-none">@</span>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value.replace(/^@+/, ''))}
+                  className="input-aura w-full pl-7"
+                  placeholder={t('login.username_placeholder')}
+                  autoComplete="username"
+                  required
+                  pattern="[a-zA-Z0-9_]{3,20}"
+                  title={t('login.username_hint')}
+                />
+              </div>
+              {isRegister && (
+                <div className="text-xs text-aura-text-muted mt-1">{t('login.username_hint')}</div>
+              )}
             </div>
 
             {isRegister && (
               <div>
                 <label className="block text-xs font-medium text-aura-text-dim mb-1.5 uppercase tracking-wide">
-                  Display name (optional)
+                  {t('login.display_name')}
                 </label>
                 <input
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   className="input-aura w-full"
-                  placeholder="How you want to appear"
+                  placeholder={t('login.display_name_placeholder')}
                 />
               </div>
             )}
 
             <div>
               <label className="block text-xs font-medium text-aura-text-dim mb-1.5 uppercase tracking-wide">
-                Password
+                {t('login.password')}
               </label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="input-aura w-full"
-                placeholder="••••••••"
+                placeholder={t('login.password_placeholder')}
                 autoComplete={isRegister ? 'new-password' : 'current-password'}
                 required
+                minLength={6}
               />
             </div>
 
@@ -111,28 +137,28 @@ export function LoginPage() {
               disabled={loading}
               className="btn-primary w-full py-3 text-base disabled:opacity-50"
             >
-              {loading ? 'Loading...' : isRegister ? 'Create account' : 'Sign in'}
+              {loading ? t('login.loading') : isRegister ? t('login.create_button') : t('login.signin_button')}
             </button>
           </form>
 
           <div className="mt-6 text-center text-sm">
             <span className="text-aura-text-dim">
-              {isRegister ? 'Already have an aura? ' : 'New here? '}
+              {isRegister ? t('login.have_aura') : t('login.new_here')}
             </span>
             <button
               type="button"
               onClick={() => { setIsRegister(!isRegister); setError(''); }}
               className="text-aura-primary-light hover:underline font-medium"
             >
-              {isRegister ? 'Sign in' : 'Create account'}
+              {isRegister ? t('login.signin_button') : t('login.create_button')}
             </button>
           </div>
         </div>
 
         <div className="grid grid-cols-3 gap-3 mt-6">
-          <Feature icon={<Shield className="w-4 h-4" />} text="E2E Encrypted" />
-          <Feature icon={<Lock className="w-4 h-4" />} text="No phone needed" />
-          <Feature icon={<Zap className="w-4 h-4" />} text="Lightning fast" />
+          <Feature icon={<Shield className="w-4 h-4" />} text={t('login.feature_e2e')} />
+          <Feature icon={<Lock className="w-4 h-4" />} text={t('login.feature_no_phone')} />
+          <Feature icon={<Zap className="w-4 h-4" />} text={t('login.feature_fast')} />
         </div>
       </div>
     </div>

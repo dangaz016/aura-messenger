@@ -26,7 +26,7 @@ router.post('/register', async (req, res) => {
     }
 
     if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
-      return res.status(400).json({ error: 'Username must be 3-20 chars, letters/numbers/underscore only' });
+      return res.status(400).json({ error: 'Username must be 3-20 chars: letters/numbers/underscore' });
     }
 
     if (password.length < 6) {
