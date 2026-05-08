@@ -6,9 +6,11 @@ import { useT } from '../../contexts/LanguageContext';
 import { Avatar } from '../Common/Avatar';
 import { ChatItem } from './ChatItem';
 import { NewChatModal } from './NewChatModal';
+import { StoriesBar } from '../Stories/StoriesBar';
 
 interface SidebarProps {
   onOpenSettings: () => void;
+  onOpenAI?: () => void;
   view: 'chats' | 'spaces';
   setView: (v: 'chats' | 'spaces') => void;
 }
@@ -66,6 +68,9 @@ export function Sidebar({ onOpenSettings, view, setView }: SidebarProps) {
             <Settings className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Stories bar (only on chats tab) */}
+        {view === 'chats' && <StoriesBar />}
 
         <div className="px-3 pt-3 pb-2 flex gap-1">
           <TabButton

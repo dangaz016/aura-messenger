@@ -3,6 +3,7 @@ import { Shield, Sparkles, Zap, Lock } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useT } from '../../contexts/LanguageContext';
 import { TranslationKey } from '../../i18n/translations';
+import { GoogleSignIn } from './GoogleSignIn';
 
 // Map server error messages to translation keys
 function mapServerError(message: string): TranslationKey | null {
@@ -140,6 +141,8 @@ export function LoginPage() {
               {loading ? t('login.loading') : isRegister ? t('login.create_button') : t('login.signin_button')}
             </button>
           </form>
+
+          <GoogleSignIn />
 
           <div className="mt-6 text-center text-sm">
             <span className="text-aura-text-dim">

@@ -10,6 +10,8 @@ import authRoutes from './routes/auth';
 import usersRoutes from './routes/users';
 import chatsRoutes from './routes/chats';
 import filesRoutes from './routes/files';
+import storiesRoutes, { startStoryCleanup } from './routes/stories';
+import aiRoutes from './routes/ai';
 
 const PORT = parseInt(process.env.PORT || '3001');
 
@@ -46,6 +48,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/chats', chatsRoutes);
 app.use('/api/files', filesRoutes);
+app.use('/api/stories', storiesRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Serve client SPA in production. The client is built into ../client/dist
 // (from compiled server/dist, that's ../../client/dist).
@@ -75,6 +79,7 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 });
 
 setupSocketHandlers(io);
+startStoryCleanup();
 
 server.listen(PORT, () => {
   console.log(`

@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import { User, Chat, Message, AuraMode } from '../types';
+import { User, Chat, Message, AuraMode, StoryGroup, Story, StoryType, StoryViewer } from '../types';
 
 const TOKEN_KEY = 'aura_token';
 
@@ -120,6 +120,67 @@ class ApiService {
       '/files/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } }
     );
     return data.file;
+  }
+
+  // ===== STORIES =====
+  async getStoryFeed() {
+    const { data } = await this.client.get<{ feed: StoryGroup[] }>('/stories');
+    return data.feed;
+  }
+
+  async createStory(payload: { type: StoryType; content?: string; fileId?: string; bgColor?: string }) {
+    const { data } = await this.client.post<{ story: Story }>('/stories', payload);
+    return data.story;
+  }
+
+  async viewStory(storyId: string) {
+    await this.client.post(`/stories/${storyId}/view`);
+  }
+
+  async deleteStory(storyId: string) {
+    await this.client.delete(`/stories/${storyId}`);
+  }
+
+  async getStoryViewers(storyId: string) {
+    const { data } = await this.client.get<{ viewers: StoryViewer[] }>(`/stories/${storyId}/viewers`);
+    return data.viewers;
+  }
+
+  async reactToStory(storyId: string, emoji: string) {
+    await this.client.post(`/stories/${storyId}/react`, { emoji });
+  }
+
+  // ===== AI =====
+  async aiStatus() {
+    const { data } = await this.client.get<{ available: boolean; model: string | null }>('/ai/status');
+    return data;
+  }
+
+  async aiChat(message: string, history: { role: 'user' | 'assistant'; content: string }[], lang: 'en' | 'ru') {
+    const { data } = await this.client.post<{ reply: string }>('/ai/chat', { message, history, lang });
+    return data.reply;
+  }
+
+  async aiSuggestReply(lastMessages: { senderName: string; content: string; isOwn: boolean }[], lang: 'en' | 'ru') {
+    const { data } = await this.client.post<{ suggestions: string[] }>('/ai/suggest-reply', { lastMessages, lang });
+    return data.suggestions;
+  }
+
+  async aiSummarize(messages: { senderName: string; content: string }[], lang: 'en' | 'ru') {
+    const { data } = await this.client.post<{ summary: string }>('/ai/summarize', { messages, lang });
+    return data.summary;
+  }
+
+  // ===== GOOGLE OAUTH =====
+  async googleStatus() {
+    const { data } = await this.client.get<{ available: boolean; clientId: string | null }>('/auth/google/status');
+    return data;
+  }
+
+  async googleSignIn(credential: string) {
+    const { data } = await this.client.post<{ token: string; user: User }>('/auth/google', { credential });
+    this.setToken(data.token);
+    return data;
   }
 }
 

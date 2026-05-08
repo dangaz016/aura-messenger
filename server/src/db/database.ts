@@ -88,10 +88,49 @@ function initializeSchema(db: DatabaseSync) {
       created_at INTEGER DEFAULT (unixepoch())
     );
 
+    CREATE TABLE IF NOT EXISTS stories (
+      id TEXT PRIMARY KEY,
+      author_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+      type TEXT NOT NULL,
+      content TEXT,
+      file_id TEXT,
+      bg_color TEXT,
+      created_at INTEGER DEFAULT (unixepoch()),
+      expires_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS story_views (
+      story_id TEXT REFERENCES stories(id) ON DELETE CASCADE,
+      viewer_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+      viewed_at INTEGER DEFAULT (unixepoch()),
+      PRIMARY KEY (story_id, viewer_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS story_reactions (
+      story_id TEXT REFERENCES stories(id) ON DELETE CASCADE,
+      user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+      emoji TEXT NOT NULL,
+      created_at INTEGER DEFAULT (unixepoch()),
+      PRIMARY KEY (story_id, user_id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_messages_chat_id ON messages(chat_id);
     CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
     CREATE INDEX IF NOT EXISTS idx_chat_members_user_id ON chat_members(user_id);
+    CREATE INDEX IF NOT EXISTS idx_stories_author ON stories(author_id);
+    CREATE INDEX IF NOT EXISTS idx_stories_expires ON stories(expires_at);
   `);
+
+  // Migration: add google_id column if missing
+  try {
+    db.exec("ALTER TABLE users ADD COLUMN google_id TEXT");
+  } catch { /* already exists */ }
+  try {
+    db.exec("ALTER TABLE users ADD COLUMN avatar_url TEXT");
+  } catch { /* already exists */ }
+  try {
+    db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id) WHERE google_id IS NOT NULL");
+  } catch { /* ignore */ }
 }
 
 export function closeDb() {

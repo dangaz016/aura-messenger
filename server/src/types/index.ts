@@ -1,6 +1,7 @@
 export type AuraMode = 'available' | 'ghost' | 'dnd';
 export type ChatType = 'direct' | 'group' | 'space';
 export type MessageType = 'text' | 'file' | 'image' | 'voice';
+export type StoryType = 'text' | 'image' | 'video';
 
 export interface UserRow {
   id: string;
@@ -13,8 +14,21 @@ export interface UserRow {
   mood_emoji: string;
   mood_text: string;
   aura_mode: AuraMode;
+  google_id: string | null;
+  avatar_url: string | null;
   created_at: number;
   last_seen: number;
+}
+
+export interface StoryRow {
+  id: string;
+  author_id: string;
+  type: StoryType;
+  content: string | null;
+  file_id: string | null;
+  bg_color: string | null;
+  created_at: number;
+  expires_at: number;
 }
 
 export interface PublicUser {
@@ -22,6 +36,7 @@ export interface PublicUser {
   username: string;
   displayName: string;
   avatarColor: string;
+  avatarUrl: string | null;
   publicKey: string | null;
   moodEmoji: string;
   moodText: string;
@@ -73,6 +88,7 @@ export function rowToPublicUser(row: UserRow): PublicUser {
     username: row.username,
     displayName: row.display_name,
     avatarColor: row.avatar_color,
+    avatarUrl: row.avatar_url ?? null,
     publicKey: row.public_key,
     moodEmoji: row.mood_emoji,
     moodText: row.mood_text,

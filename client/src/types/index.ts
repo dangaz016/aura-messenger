@@ -1,18 +1,54 @@
 export type AuraMode = 'available' | 'ghost' | 'dnd';
 export type ChatType = 'direct' | 'group' | 'space';
 export type MessageType = 'text' | 'file' | 'image' | 'voice';
+export type StoryType = 'text' | 'image' | 'video';
 
 export interface User {
   id: string;
   username: string;
   displayName: string;
   avatarColor: string;
+  avatarUrl?: string | null;
   publicKey: string | null;
   moodEmoji: string;
   moodText: string;
   auraMode: AuraMode;
   lastSeen: number;
   createdAt: number;
+}
+
+export interface Story {
+  id: string;
+  authorId: string;
+  type: StoryType;
+  content: string | null;
+  fileId: string | null;
+  bgColor: string | null;
+  createdAt: number;
+  expiresAt: number;
+  viewed: boolean;
+  viewerCount: number;
+}
+
+export interface StoryGroup {
+  user: {
+    id: string;
+    username: string;
+    displayName: string;
+    avatarColor: string;
+    avatarUrl: string | null;
+  };
+  stories: Story[];
+  hasUnviewed: boolean;
+}
+
+export interface StoryViewer {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarColor: string;
+  avatarUrl?: string | null;
+  viewedAt: number;
 }
 
 export interface ChatMember extends User {

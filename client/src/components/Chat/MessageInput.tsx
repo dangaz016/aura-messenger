@@ -3,6 +3,7 @@ import { Send, Paperclip, Timer, Smile, X } from 'lucide-react';
 import { useChat } from '../../contexts/ChatContext';
 import { useT } from '../../contexts/LanguageContext';
 import { api } from '../../services/api';
+import { SuggestReply } from '../AI/SuggestReply';
 
 const getEchoOptions = (offLabel: string): { label: string; value: number | null }[] => [
   { label: offLabel, value: null },
@@ -22,9 +23,10 @@ interface MessageInputProps {
 }
 
 export function MessageInput({ chatId }: MessageInputProps) {
-  const { sendMessage, startTyping, stopTyping } = useChat();
+  const { sendMessage, startTyping, stopTyping, messages: allMessages } = useChat();
   const { t } = useT();
   const ECHO_OPTIONS = getEchoOptions(t('input.echo_off'));
+  const chatMessages = allMessages.get(chatId) || [];
   const [text, setText] = useState('');
   const [echoDuration, setEchoDuration] = useState<number | null>(null);
   const [showEcho, setShowEcho] = useState(false);
@@ -134,6 +136,8 @@ export function MessageInput({ chatId }: MessageInputProps) {
         >
           <Paperclip className="w-5 h-5" />
         </button>
+
+        <SuggestReply messages={chatMessages} onPick={(s) => setText(s)} />
 
         <div className="relative">
           <button
