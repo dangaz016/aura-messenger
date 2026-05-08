@@ -1,0 +1,22 @@
+# Render.com deployment config — at repo root
+services:
+  - type: web
+    name: aura-server
+    runtime: node
+    rootDir: server
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    plan: free
+    envVars:
+      - key: NODE_VERSION
+        value: "22.11.0"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false   # Set in Render dashboard: https://aura-messenger-ar.netlify.app,http://localhost:5173
+      - key: PORT
+        value: "10000"
+      - key: DATA_DIR
+        value: "/data"
+      - key: GROQ_API_KEY
+        sync: false   # Set in Render dashboard: your Groq API key
