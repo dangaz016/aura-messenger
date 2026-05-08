@@ -31,6 +31,7 @@ export function ChatItem({ chat, active, onClick, userStatus }: ChatItemProps) {
     if (lastMsg.type === 'image') return '🖼 ' + t('chat_item.image');
     if (lastMsg.type === 'file') return '📎 ' + t('chat_item.file');
     if (lastMsg.type === 'voice') return '🎤 Голосовое';
+    if (lastMsg.type === 'video') return '🎥 Видео-кружок';
     return lastMsg.content.length > 50 ? lastMsg.content.slice(0, 50) + '…' : lastMsg.content;
   })();
 

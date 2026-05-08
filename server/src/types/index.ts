@@ -1,6 +1,6 @@
 export type AuraMode = 'available' | 'ghost' | 'dnd';
 export type ChatType = 'direct' | 'group' | 'space' | 'channel';
-export type MessageType = 'text' | 'file' | 'image' | 'voice';
+export type MessageType = 'text' | 'file' | 'image' | 'voice' | 'video';
 export type StoryType = 'text' | 'image' | 'video';
 
 export interface UserRow {

@@ -11,7 +11,7 @@ interface ChatContextValue {
   setActiveChatId: (id: string | null) => void;
   messages: Map<string, Message[]>;
   loadMessages: (chatId: string) => Promise<void>;
-  sendMessage: (chatId: string, content: string, opts?: { type?: 'text' | 'file' | 'image'; fileId?: string; echoDuration?: number }) => void;
+  sendMessage: (chatId: string, content: string, opts?: { type?: 'text' | 'file' | 'image' | 'voice' | 'video'; fileId?: string; echoDuration?: number }) => void;
   refreshChats: () => Promise<void>;
   createDirectChat: (userId: string) => Promise<Chat>;
   createGroupChat: (name: string, memberIds: string[], description?: string) => Promise<Chat>;
@@ -150,7 +150,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     refreshChats();
   }, [refreshChats]);
 
-  const sendMessage = useCallback((chatId: string, content: string, opts: { type?: 'text' | 'file' | 'image'; fileId?: string; echoDuration?: number } = {}) => {
+  const sendMessage = useCallback((chatId: string, content: string, opts: { type?: 'text' | 'file' | 'image' | 'voice' | 'video'; fileId?: string; echoDuration?: number } = {}) => {
     socketService.sendMessage(chatId, content, opts);
   }, []);
 

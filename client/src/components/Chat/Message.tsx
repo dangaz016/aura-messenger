@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Timer, Trash2, Smile, Download, FileText } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Timer, Trash2, Smile, Download, FileText, Play, Pause } from 'lucide-react';
 import { Message as MessageType } from '../../types';
 import { useChat } from '../../contexts/ChatContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -8,6 +8,123 @@ import { api } from '../../services/api';
 import { formatMessageTime, formatEchoTime } from '../../utils/formatters';
 
 const REACTIONS = ['❤️', '👍', '😂', '🔥', '😮', '😢'];
+
+// ── Voice message player ───────────────────────────────────────────────────
+
+function VoicePlayer({ url, isOwn }: { url: string; isOwn: boolean }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  function toggle() {
+    const a = audioRef.current;
+    if (!a) return;
+    if (playing) { a.pause(); setPlaying(false); }
+    else { a.play(); setPlaying(true); }
+  }
+
+  function fmt(s: number) {
+    const v = isFinite(s) ? Math.floor(s) : 0;
+    return `${Math.floor(v / 60)}:${String(v % 60).padStart(2, '0')}`;
+  }
+
+  const progress = duration > 0 ? currentTime / duration : 0;
+
+  return (
+    <div className={`flex items-center gap-2 py-1 pr-1 min-w-[180px] ${isOwn ? '' : ''}`}>
+      <audio
+        ref={audioRef}
+        src={url}
+        onTimeUpdate={() => setCurrentTime(audioRef.current?.currentTime ?? 0)}
+        onLoadedMetadata={() => setDuration(audioRef.current?.duration ?? 0)}
+        onEnded={() => { setPlaying(false); setCurrentTime(0); }}
+      />
+      <button
+        onClick={toggle}
+        className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
+          isOwn ? 'bg-white/20 hover:bg-white/30' : 'bg-aura-primary/20 hover:bg-aura-primary/30'
+        }`}
+      >
+        {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 translate-x-0.5" />}
+      </button>
+
+      <div className="flex-1 flex flex-col gap-1">
+        {/* Waveform bars */}
+        <div className="flex items-center gap-px h-6">
+          {Array.from({ length: 28 }).map((_, i) => {
+            const barProgress = (i + 1) / 28;
+            const filled = barProgress <= progress;
+            const height = 8 + Math.abs(Math.sin(i * 0.8 + 1) * 12);
+            return (
+              <div
+                key={i}
+                className="w-1 rounded-full transition-colors"
+                style={{
+                  height: `${height}px`,
+                  backgroundColor: filled
+                    ? (isOwn ? 'rgba(255,255,255,0.9)' : 'var(--color-aura-primary, #7C3AED)')
+                    : (isOwn ? 'rgba(255,255,255,0.35)' : 'rgba(124,58,237,0.3)'),
+                }}
+              />
+            );
+          })}
+        </div>
+        <div className={`text-[10px] ${isOwn ? 'text-white/60' : 'text-aura-text-muted'}`}>
+          {playing ? fmt(currentTime) : fmt(duration)} {!playing && duration > 0 ? '' : ''}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Video circle player ────────────────────────────────────────────────────
+
+function VideoCircle({ url }: { url: string }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  function toggle() {
+    const v = videoRef.current;
+    if (!v) return;
+    if (playing) { v.pause(); setPlaying(false); }
+    else { v.play(); setPlaying(true); }
+  }
+
+  return (
+    <div className="relative w-40 h-40 cursor-pointer" onClick={toggle}>
+      <video
+        ref={videoRef}
+        src={url}
+        className="w-full h-full object-cover rounded-full"
+        loop={false}
+        playsInline
+        onTimeUpdate={() => {
+          const v = videoRef.current;
+          if (v && v.duration) setProgress(v.currentTime / v.duration);
+        }}
+        onEnded={() => { setPlaying(false); setProgress(0); }}
+      />
+      {/* Circular progress ring */}
+      <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="48" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="3" />
+        <circle
+          cx="50" cy="50" r="48" fill="none"
+          stroke="rgba(255,255,255,0.85)" strokeWidth="3"
+          strokeDasharray={`${301.6 * progress} 301.6`}
+          strokeLinecap="round"
+        />
+      </svg>
+      {/* Play/pause overlay */}
+      {!playing && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-full">
+          <Play className="w-10 h-10 text-white translate-x-1 drop-shadow" />
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface MessageProps {
   message: MessageType;
@@ -38,6 +155,8 @@ export function Message({ message, isOwn, isFirstInGroup, showSender }: MessageP
   }, {} as Record<string, string[]>);
 
   const isImage = message.type === 'image' || (message.fileMime && message.fileMime.startsWith('image/'));
+  const isVoice = message.type === 'voice';
+  const isVideoCircle = message.type === 'video';
   const fileUrl = message.fileId ? api.fileUrl(message.fileId) : null;
 
   return (
@@ -66,7 +185,30 @@ export function Message({ message, isOwn, isFirstInGroup, showSender }: MessageP
           </div>
         )}
 
+        {/* Video circle — no bubble, just round video */}
+        {isVideoCircle && fileUrl && (
+          <div className="relative group/bubble mb-1">
+            <VideoCircle url={fileUrl} />
+            <div className={`absolute bottom-1 ${isOwn ? 'right-2' : 'left-2'} text-[10px] text-white/80 drop-shadow`}>
+              {formatMessageTime(message.createdAt)}
+            </div>
+            {showActions && (
+              <div className={`absolute top-0 ${isOwn ? '-left-16' : '-right-16'} flex gap-1 opacity-0 group-hover/bubble:opacity-100 transition-opacity`}>
+                {isOwn && (
+                  <button
+                    onClick={() => deleteMessage(message.id)}
+                    className="p-1.5 bg-aura-elevated rounded-full hover:bg-aura-dnd text-aura-text-dim hover:text-white transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="relative group/bubble">
+          {!isVideoCircle && (
           <div
             className={`relative px-3 py-2 rounded-2xl ${isOwn ? 'message-bubble-out rounded-br-md' : 'message-bubble-in rounded-bl-md'} ${isEcho ? 'echo-pulse' : ''}`}
           >
@@ -78,6 +220,10 @@ export function Message({ message, isOwn, isFirstInGroup, showSender }: MessageP
                   className="rounded-xl max-w-full max-h-72 object-cover"
                 />
               </a>
+            )}
+
+            {isVoice && fileUrl && (
+              <VoicePlayer url={fileUrl} isOwn={isOwn} />
             )}
 
             {message.type === 'file' && fileUrl && !isImage && (
@@ -95,7 +241,7 @@ export function Message({ message, isOwn, isFirstInGroup, showSender }: MessageP
               </a>
             )}
 
-            {message.content && (
+            {message.content && !isVoice && (
               <div className="text-sm whitespace-pre-wrap break-words leading-relaxed">{message.content}</div>
             )}
 
@@ -110,8 +256,9 @@ export function Message({ message, isOwn, isFirstInGroup, showSender }: MessageP
               <span>{formatMessageTime(message.createdAt)}</span>
             </div>
           </div>
+          )}
 
-          {showActions && (
+          {showActions && !isVideoCircle && (
             <div className={`absolute top-0 ${isOwn ? '-left-20' : '-right-20'} flex gap-1 opacity-0 group-hover/bubble:opacity-100 transition-opacity`}>
               <button
                 onClick={() => setShowReactions(!showReactions)}

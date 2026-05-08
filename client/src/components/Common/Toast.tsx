@@ -94,6 +94,7 @@ export function ToastContainer() {
       const preview = msg.type === 'image' ? '🖼 Фото'
         : msg.type === 'file' ? '📎 Файл'
         : msg.type === 'voice' ? '🎤 Голосовое'
+        : msg.type === 'video' ? '🎥 Видео-кружок'
         : msg.content?.slice(0, 60) || '…';
       showToast(preview, 'message', msg.senderName, msg.senderAvatarColor);
     };
