@@ -24,7 +24,7 @@ router.get('/search', (req, res) => {
 });
 
 router.patch('/profile', (req, res) => {
-  const { displayName, moodEmoji, moodText, auraMode, avatarColor, publicKey } = req.body;
+  const { displayName, moodEmoji, moodText, auraMode, avatarColor, publicKey, avatarUrl, birthday } = req.body;
   const db = getDb();
 
   const validModes: AuraMode[] = ['available', 'ghost', 'dnd'];
@@ -41,6 +41,16 @@ router.patch('/profile', (req, res) => {
   if (auraMode !== undefined) { updates.push('aura_mode = ?'); values.push(auraMode); }
   if (avatarColor !== undefined) { updates.push('avatar_color = ?'); values.push(avatarColor); }
   if (publicKey !== undefined) { updates.push('public_key = ?'); values.push(publicKey); }
+  if (avatarUrl !== undefined) { updates.push('avatar_url = ?'); values.push(avatarUrl || null); }
+  const bio = req.body.bio;
+  if (bio !== undefined) { updates.push('bio = ?'); values.push(bio.slice(0, 300)); }
+  if (birthday !== undefined) {
+    // Validate MM-DD format or null
+    const valid = birthday === null || birthday === '' || /^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(birthday);
+    if (!valid) return res.status(400).json({ error: 'Invalid birthday format' });
+    updates.push('birthday = ?');
+    values.push(birthday || null);
+  }
 
   if (updates.length === 0) {
     return res.status(400).json({ error: 'No fields to update' });

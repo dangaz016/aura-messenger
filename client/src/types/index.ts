@@ -1,5 +1,5 @@
 export type AuraMode = 'available' | 'ghost' | 'dnd';
-export type ChatType = 'direct' | 'group' | 'space';
+export type ChatType = 'direct' | 'group' | 'space' | 'channel';
 export type MessageType = 'text' | 'file' | 'image' | 'voice';
 export type StoryType = 'text' | 'image' | 'video';
 
@@ -15,6 +15,9 @@ export interface User {
   auraMode: AuraMode;
   lastSeen: number;
   createdAt: number;
+  bio?: string;
+  birthday?: string | null;
+  isAdmin?: boolean;
 }
 
 export interface Story {
@@ -77,6 +80,12 @@ export interface Chat {
   otherUser?: User | null;
   lastMessage: LastMessage | null;
   unreadCount: number;
+  // Channel fields
+  isPublic?: boolean;
+  inviteLink?: string | null;
+  channelUsername?: string | null;
+  subscriberCount?: number;
+  postPermissions?: string;
 }
 
 export interface Reaction {

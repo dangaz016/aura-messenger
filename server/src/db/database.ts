@@ -2,7 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import path from 'path';
 import fs from 'fs';
 
-const DATA_DIR = path.join(__dirname, '../../data');
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '../../data');
 const DB_PATH = path.join(DATA_DIR, 'aura.db');
 
 if (!fs.existsSync(DATA_DIR)) {
@@ -121,18 +121,51 @@ function initializeSchema(db: DatabaseSync) {
     CREATE INDEX IF NOT EXISTS idx_stories_expires ON stories(expires_at);
   `);
 
-  // Migration: add google_id column if missing
-  try {
-    db.exec("ALTER TABLE users ADD COLUMN google_id TEXT");
-  } catch { /* already exists */ }
-  try {
-    db.exec("ALTER TABLE users ADD COLUMN avatar_url TEXT");
-  } catch { /* already exists */ }
-  try {
-    db.exec("ALTER TABLE users ADD COLUMN last_username_change INTEGER DEFAULT 0");
-  } catch { /* already exists */ }
+  // Channels and new features tables
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS story_comments (
+      id TEXT PRIMARY KEY,
+      story_id TEXT REFERENCES stories(id) ON DELETE CASCADE,
+      user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+      content TEXT NOT NULL,
+      created_at INTEGER DEFAULT (unixepoch())
+    );
+
+    CREATE TABLE IF NOT EXISTS reports (
+      id TEXT PRIMARY KEY,
+      reporter_id TEXT REFERENCES users(id),
+      target_user_id TEXT REFERENCES users(id),
+      target_message_id TEXT,
+      reason TEXT NOT NULL,
+      created_at INTEGER DEFAULT (unixepoch()),
+      resolved INTEGER DEFAULT 0
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_story_comments_story ON story_comments(story_id);
+  `);
+
+  // Migrations: users table
+  try { db.exec("ALTER TABLE users ADD COLUMN google_id TEXT"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE users ADD COLUMN avatar_url TEXT"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE users ADD COLUMN last_username_change INTEGER DEFAULT 0"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE users ADD COLUMN is_banned INTEGER DEFAULT 0"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE users ADD COLUMN is_frozen INTEGER DEFAULT 0"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE users ADD COLUMN ban_reason TEXT"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE users ADD COLUMN bio TEXT DEFAULT ''"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE users ADD COLUMN phone TEXT"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE users ADD COLUMN birthday TEXT"); } catch { /* already exists */ }
+  // Migrations: chats table (channels)
+  try { db.exec("ALTER TABLE chats ADD COLUMN is_public INTEGER DEFAULT 1"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE chats ADD COLUMN invite_link TEXT"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE chats ADD COLUMN channel_username TEXT"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE chats ADD COLUMN subscriber_count INTEGER DEFAULT 0"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE chats ADD COLUMN post_permissions TEXT DEFAULT 'admins'"); } catch { /* already exists */ }
   try {
     db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id) WHERE google_id IS NOT NULL");
+  } catch { /* ignore */ }
+  try {
+    db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_chats_channel_username ON chats(channel_username) WHERE channel_username IS NOT NULL");
   } catch { /* ignore */ }
 }
 

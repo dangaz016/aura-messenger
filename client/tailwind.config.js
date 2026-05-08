@@ -5,18 +5,20 @@ export default {
     extend: {
       colors: {
         aura: {
-          bg: '#0d0d1a',
-          surface: '#13131f',
-          surface2: '#1a1a2e',
-          elevated: '#1e1e35',
-          border: '#2a2a44',
-          'border-light': '#373760',
+          // Dynamic (change with theme) — uses CSS variables
+          bg: 'var(--aura-bg)',
+          surface: 'var(--aura-surface)',
+          surface2: 'var(--aura-surface2)',
+          elevated: 'var(--aura-elevated)',
+          border: 'var(--aura-border)',
+          'border-light': 'var(--aura-border-light)',
+          primary: 'var(--aura-accent)',
+          'primary-light': 'var(--aura-accent-light)',
+          'primary-dim': 'var(--aura-accent-dim)',
+          // Static colors
           text: '#e8e8f0',
           'text-dim': '#9999bb',
           'text-muted': '#6b6b8d',
-          primary: '#7C3AED',
-          'primary-light': '#A78BFA',
-          'primary-dim': 'rgba(124, 58, 237, 0.15)',
           online: '#22c55e',
           ghost: '#f59e0b',
           dnd: '#ef4444',

@@ -12,6 +12,24 @@ import chatsRoutes from './routes/chats';
 import filesRoutes from './routes/files';
 import storiesRoutes, { startStoryCleanup } from './routes/stories';
 import aiRoutes from './routes/ai';
+import adminRoutes, { reportRouter } from './routes/admin';
+
+// Load .env if present (local dev)
+try {
+  const envPath = path.join(__dirname, '../../.env');
+  if (fs.existsSync(envPath)) {
+    const lines = fs.readFileSync(envPath, 'utf-8').split('\n');
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eq = trimmed.indexOf('=');
+      if (eq < 0) continue;
+      const key = trimmed.slice(0, eq).trim();
+      const val = trimmed.slice(eq + 1).trim();
+      if (!process.env[key]) process.env[key] = val;
+    }
+  }
+} catch { /* ignore */ }
 
 const PORT = parseInt(process.env.PORT || '3001');
 
@@ -50,6 +68,8 @@ app.use('/api/chats', chatsRoutes);
 app.use('/api/files', filesRoutes);
 app.use('/api/stories', storiesRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/report', reportRouter);
 
 // Serve client SPA in production. The client is built into ../client/dist
 // (from compiled server/dist, that's ../../client/dist).

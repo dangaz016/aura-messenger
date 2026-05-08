@@ -102,6 +102,11 @@ router.get('/', (req, res) => {
       otherUser,
       lastMessage: getLastMessage(chat.id),
       unreadCount: getUnreadCount(chat.id, userId),
+      isPublic: chat.is_public !== 0,
+      inviteLink: chat.invite_link,
+      channelUsername: chat.channel_username,
+      subscriberCount: chat.subscriber_count || members.length,
+      postPermissions: chat.post_permissions || 'admins',
     };
   });
 
@@ -115,14 +120,16 @@ router.get('/', (req, res) => {
 });
 
 router.post('/', (req, res) => {
-  const { type, memberIds, name, description } = req.body as {
+  const { type, memberIds, name, description, isPublic, channelUsername } = req.body as {
     type: ChatType;
     memberIds: string[];
     name?: string;
     description?: string;
+    isPublic?: boolean;
+    channelUsername?: string;
   };
 
-  if (!type || !['direct', 'group', 'space'].includes(type)) {
+  if (!type || !['direct', 'group', 'space', 'channel'].includes(type)) {
     return res.status(400).json({ error: 'Invalid chat type' });
   }
   if (!Array.isArray(memberIds)) {
@@ -158,17 +165,29 @@ router.post('/', (req, res) => {
     }
   }
 
-  if ((type === 'group' || type === 'space') && (!name || name.trim().length < 2)) {
-    return res.status(400).json({ error: 'Name is required for groups and spaces' });
+  if ((type === 'group' || type === 'space' || type === 'channel') && (!name || name.trim().length < 2)) {
+    return res.status(400).json({ error: 'Name is required for groups, spaces, and channels' });
+  }
+
+  // For channels, validate channel username if provided
+  if (type === 'channel' && channelUsername) {
+    if (!/^[a-zA-Z0-9_]{3,30}$/.test(channelUsername)) {
+      return res.status(400).json({ error: 'Channel username must be 3-30 chars: letters, numbers, underscores' });
+    }
+    const existingCh = db.prepare('SELECT id FROM chats WHERE channel_username = ?').get(channelUsername);
+    if (existingCh) return res.status(409).json({ error: 'Channel username already taken' });
   }
 
   const chatId = uuidv4();
   const now = Math.floor(Date.now() / 1000);
+  const inviteLinkVal = type === 'channel' ? uuidv4().replace(/-/g, '').slice(0, 16) : null;
+  const isPublicVal = type === 'channel' ? (isPublic !== false ? 1 : 0) : 1;
 
   db.prepare(`
-    INSERT INTO chats (id, type, name, description, avatar_color, created_by, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(chatId, type, name ?? null, description ?? null, pickChatColor(), userId, now);
+    INSERT INTO chats (id, type, name, description, avatar_color, created_by, created_at, is_public, invite_link, channel_username, post_permissions)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(chatId, type, name ?? null, description ?? null, pickChatColor(), userId, now,
+    isPublicVal, inviteLinkVal, channelUsername || null, 'admins');
 
   const insertMember = db.prepare(`
     INSERT INTO chat_members (chat_id, user_id, role, joined_at)
@@ -317,6 +336,92 @@ router.delete('/:id/messages/:messageId', (req, res) => {
 
   db.prepare('UPDATE messages SET is_deleted = 1 WHERE id = ?').run(messageId);
   res.json({ success: true });
+});
+
+// PATCH /api/chats/:id/settings — update channel/group settings (admin only)
+router.patch('/:id/settings', (req, res) => {
+  const db = getDb();
+  const chatId = req.params.id;
+  const userId = req.user!.userId;
+  const member = db.prepare('SELECT role FROM chat_members WHERE chat_id = ? AND user_id = ?')
+    .get(chatId, userId) as { role: string } | undefined;
+  if (!member || member.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin required' });
+  }
+  const { name, description, isPublic, channelUsername, postPermissions, avatarColor } = req.body as {
+    name?: string; description?: string; isPublic?: boolean;
+    channelUsername?: string; postPermissions?: string; avatarColor?: string;
+  };
+
+  if (channelUsername !== undefined) {
+    if (channelUsername && !/^[a-zA-Z0-9_]{3,30}$/.test(channelUsername)) {
+      return res.status(400).json({ error: 'Invalid channel username format' });
+    }
+    if (channelUsername) {
+      const existing = db.prepare('SELECT id FROM chats WHERE channel_username = ? AND id != ?').get(channelUsername, chatId);
+      if (existing) return res.status(409).json({ error: 'Channel username taken' });
+    }
+  }
+
+  const updates: string[] = [];
+  const values: unknown[] = [];
+  if (name !== undefined) { updates.push('name = ?'); values.push(name.trim() || null); }
+  if (description !== undefined) { updates.push('description = ?'); values.push(description || null); }
+  if (isPublic !== undefined) { updates.push('is_public = ?'); values.push(isPublic ? 1 : 0); }
+  if (channelUsername !== undefined) { updates.push('channel_username = ?'); values.push(channelUsername || null); }
+  if (postPermissions !== undefined) { updates.push('post_permissions = ?'); values.push(postPermissions); }
+  if (avatarColor !== undefined) { updates.push('avatar_color = ?'); values.push(avatarColor); }
+
+  if (updates.length > 0) {
+    values.push(chatId);
+    (db.prepare(`UPDATE chats SET ${updates.join(', ')} WHERE id = ?`) as any).run(...values);
+  }
+  const updated = db.prepare('SELECT * FROM chats WHERE id = ?').get(chatId) as unknown as ChatRow;
+  res.json({ chat: updated });
+});
+
+// POST /api/chats/join/:inviteLink — join channel by invite link
+router.post('/join/:inviteLink', (req, res) => {
+  const db = getDb();
+  const userId = req.user!.userId;
+  const chat = db.prepare('SELECT * FROM chats WHERE invite_link = ?').get(req.params.inviteLink) as unknown as ChatRow | undefined;
+  if (!chat) return res.status(404).json({ error: 'Invalid invite link' });
+  const existing = db.prepare('SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?').get(chat.id, userId);
+  if (!existing) {
+    const now = Math.floor(Date.now() / 1000);
+    db.prepare('INSERT INTO chat_members (chat_id, user_id, role, joined_at) VALUES (?,?,?,?)')
+      .run(chat.id, userId, 'subscriber', now);
+    db.prepare('UPDATE chats SET subscriber_count = subscriber_count + 1 WHERE id = ?').run(chat.id);
+  }
+  res.json({ chatId: chat.id, chat: { id: chat.id, name: chat.name, type: chat.type } });
+});
+
+// DELETE /api/chats/:id/leave — leave channel/group
+router.delete('/:id/leave', (req, res) => {
+  const db = getDb();
+  const userId = req.user!.userId;
+  const chat = db.prepare('SELECT * FROM chats WHERE id = ?').get(req.params.id) as unknown as ChatRow | undefined;
+  if (!chat) return res.status(404).json({ error: 'Chat not found' });
+  db.prepare('DELETE FROM chat_members WHERE chat_id = ? AND user_id = ?').run(req.params.id, userId);
+  if (chat.type === 'channel') {
+    db.prepare('UPDATE chats SET subscriber_count = MAX(0, subscriber_count - 1) WHERE id = ?').run(req.params.id);
+  }
+  res.json({ success: true });
+});
+
+// GET /api/chats/search/public — search public channels
+router.get('/search/public', (req, res) => {
+  const db = getDb();
+  const q = (req.query.q as string) || '';
+  const rows = db.prepare(`
+    SELECT id, name, description, avatar_color, channel_username, subscriber_count, created_at
+    FROM chats
+    WHERE type = 'channel' AND is_public = 1
+      AND (name LIKE ? OR channel_username LIKE ? OR description LIKE ?)
+    ORDER BY subscriber_count DESC
+    LIMIT 20
+  `).all(`%${q}%`, `%${q}%`, `%${q}%`) as unknown[];
+  res.json(rows);
 });
 
 export default router;

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Search, MessageCircle, Users, Hash, Check } from 'lucide-react';
+import { X, Search, MessageCircle, Users, Hash, Check, Radio, Globe, Lock } from 'lucide-react';
 import { User } from '../../types';
 import { api } from '../../services/api';
 import { useChat } from '../../contexts/ChatContext';
@@ -7,19 +7,23 @@ import { useT } from '../../contexts/LanguageContext';
 import { Avatar } from '../Common/Avatar';
 
 interface NewChatModalProps {
-  mode: 'chat' | 'space';
+  mode: 'chat' | 'space' | 'channel';
   onClose: () => void;
 }
 
 export function NewChatModal({ mode, onClose }: NewChatModalProps) {
-  const { createDirectChat, createGroupChat, createSpace, setActiveChatId } = useChat();
+  const { createDirectChat, createGroupChat, createSpace, setActiveChatId, refreshChats } = useChat();
   const { t } = useT();
-  const [type, setType] = useState<'direct' | 'group' | 'space'>(mode === 'space' ? 'space' : 'direct');
+  const [type, setType] = useState<'direct' | 'group' | 'space' | 'channel'>(
+    mode === 'space' ? 'space' : mode === 'channel' ? 'channel' : 'direct'
+  );
   const [search, setSearch] = useState('');
   const [users, setUsers] = useState<User[]>([]);
   const [selected, setSelected] = useState<User[]>([]);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [channelUsername, setChannelUsername] = useState('');
+  const [isPublic, setIsPublic] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -60,6 +64,18 @@ export function NewChatModal({ mode, onClose }: NewChatModalProps) {
         if (!name.trim()) throw new Error(t('modal.error_name_required'));
         if (selected.length === 0) throw new Error(t('modal.error_add_member'));
         chat = await createGroupChat(name, selected.map(u => u.id), description);
+      } else if (type === 'channel') {
+        if (!name.trim()) throw new Error(t('modal.error_name_required'));
+        chat = await api.createChannel({
+          name: name.trim(),
+          description: description.trim(),
+          isPublic,
+          channelUsername: channelUsername.trim() || undefined,
+        });
+        await refreshChats();
+        setActiveChatId(chat.id);
+        onClose();
+        return;
       } else {
         if (!name.trim()) throw new Error(t('modal.error_name_required'));
         chat = await createSpace(name, description);
@@ -79,6 +95,7 @@ export function NewChatModal({ mode, onClose }: NewChatModalProps) {
 
   const canCreate = type === 'direct' ? selected.length === 1
     : type === 'group' ? name.trim().length > 0 && selected.length > 0
+    : type === 'channel' ? name.trim().length > 0
     : name.trim().length > 0;
 
   return (
@@ -86,19 +103,24 @@ export function NewChatModal({ mode, onClose }: NewChatModalProps) {
       <div className="card w-full max-w-md p-6 animate-slide-up">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold">
-            {type === 'direct' ? t('modal.new_chat') : type === 'group' ? t('modal.new_group') : t('modal.new_space')}
+            {type === 'direct' ? t('modal.new_chat')
+              : type === 'group' ? t('modal.new_group')
+              : type === 'channel' ? 'New Channel'
+              : t('modal.new_space')}
           </h2>
           <button onClick={onClose} className="p-1 hover:bg-aura-elevated rounded-lg">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {mode !== 'space' && (
-          <div className="grid grid-cols-3 gap-2 mb-4">
+        {mode !== 'space' && mode !== 'channel' && (
+          <div className="grid grid-cols-4 gap-2 mb-4">
             <TypeButton active={type === 'direct'} onClick={() => { setType('direct'); setSelected([]); }}
               icon={<MessageCircle className="w-4 h-4" />} label={t('modal.type_direct')} />
             <TypeButton active={type === 'group'} onClick={() => { setType('group'); setSelected([]); }}
               icon={<Users className="w-4 h-4" />} label={t('modal.type_group')} />
+            <TypeButton active={type === 'channel'} onClick={() => { setType('channel'); setSelected([]); }}
+              icon={<Radio className="w-4 h-4" />} label="Channel" />
             <TypeButton active={type === 'space'} onClick={() => { setType('space'); setSelected([]); }}
               icon={<Hash className="w-4 h-4" />} label={t('modal.type_space')} />
           </div>
@@ -125,7 +147,62 @@ export function NewChatModal({ mode, onClose }: NewChatModalProps) {
           </div>
         )}
 
-        {type !== 'space' && (
+        {type === 'channel' && (
+          <div className="space-y-3 mb-4">
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Channel name"
+              className="input-aura w-full"
+              maxLength={50}
+              autoFocus
+            />
+            <input
+              type="text"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Description (optional)"
+              className="input-aura w-full"
+              maxLength={200}
+            />
+            <div className="flex items-center gap-2">
+              <span className="text-aura-text-muted text-sm">@</span>
+              <input
+                type="text"
+                value={channelUsername}
+                onChange={(e) => setChannelUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
+                placeholder="username (optional)"
+                className="input-aura flex-1"
+                maxLength={30}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => setIsPublic(true)}
+                className={`flex items-center gap-2 p-2.5 rounded-lg border text-sm transition-colors ${
+                  isPublic ? 'border-aura-primary bg-aura-primary-dim' : 'border-aura-border hover:border-aura-border-light'
+                }`}>
+                <Globe className="w-4 h-4" />
+                <div className="text-left">
+                  <div className="font-medium text-xs">Public</div>
+                  <div className="text-xs text-aura-text-muted">Anyone can join</div>
+                </div>
+              </button>
+              <button onClick={() => setIsPublic(false)}
+                className={`flex items-center gap-2 p-2.5 rounded-lg border text-sm transition-colors ${
+                  !isPublic ? 'border-aura-primary bg-aura-primary-dim' : 'border-aura-border hover:border-aura-border-light'
+                }`}>
+                <Lock className="w-4 h-4" />
+                <div className="text-left">
+                  <div className="font-medium text-xs">Private</div>
+                  <div className="text-xs text-aura-text-muted">Invite only</div>
+                </div>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {type !== 'space' && type !== 'channel' && (
           <>
             {selected.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-3">

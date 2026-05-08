@@ -71,6 +71,9 @@ class ApiService {
     auraMode: AuraMode;
     avatarColor: string;
     publicKey: string;
+    avatarUrl: string;
+    bio: string;
+    birthday: string;
   }>) {
     const { data } = await this.client.patch<{ user: User }>('/users/profile', updates);
     return data.user;
@@ -174,6 +177,91 @@ class ApiService {
   async aiSummarize(messages: { senderName: string; content: string }[], lang: 'en' | 'ru') {
     const { data } = await this.client.post<{ summary: string }>('/ai/summarize', { messages, lang });
     return data.summary;
+  }
+
+  // ===== STORY COMMENTS =====
+  async getStoryComments(storyId: string) {
+    const { data } = await this.client.get(`/stories/${storyId}/comments`);
+    return data;
+  }
+
+  async addStoryComment(storyId: string, content: string) {
+    const { data } = await this.client.post(`/stories/${storyId}/comments`, { content });
+    return data;
+  }
+
+  // ===== CHANNELS =====
+  async createChannel(opts: { name: string; description?: string; isPublic?: boolean; channelUsername?: string }) {
+    const { data } = await this.client.post<{ chat: Chat }>('/chats', {
+      type: 'channel', memberIds: [],
+      name: opts.name,
+      description: opts.description,
+      isPublic: opts.isPublic !== false,
+      channelUsername: opts.channelUsername,
+    });
+    return data.chat;
+  }
+
+  async updateChatSettings(chatId: string, settings: {
+    name?: string; description?: string; isPublic?: boolean;
+    channelUsername?: string; postPermissions?: string; avatarColor?: string;
+  }) {
+    const { data } = await this.client.patch(`/chats/${chatId}/settings`, settings);
+    return data.chat;
+  }
+
+  async joinByInviteLink(inviteLink: string) {
+    const { data } = await this.client.post<{ chatId: string; chat: Chat }>(`/chats/join/${inviteLink}`);
+    return data;
+  }
+
+  async leaveChat(chatId: string) {
+    await this.client.delete(`/chats/${chatId}/leave`);
+  }
+
+  async searchPublicChannels(q: string) {
+    const { data } = await this.client.get<unknown[]>('/chats/search/public', { params: { q } });
+    return data;
+  }
+
+  // ===== ADMIN =====
+  async adminStats() {
+    const { data } = await this.client.get('/admin/stats');
+    return data;
+  }
+
+  async adminUsers(search = '', page = 1) {
+    const { data } = await this.client.get('/admin/users', { params: { search, page } });
+    return data;
+  }
+
+  async adminBanUser(userId: string, reason: string) {
+    await this.client.post(`/admin/users/${userId}/ban`, { reason });
+  }
+
+  async adminUnbanUser(userId: string) {
+    await this.client.post(`/admin/users/${userId}/unban`);
+  }
+
+  async adminFreezeUser(userId: string) {
+    await this.client.post(`/admin/users/${userId}/freeze`);
+  }
+
+  async adminUnfreezeUser(userId: string) {
+    await this.client.post(`/admin/users/${userId}/unfreeze`);
+  }
+
+  async adminMakeAdmin(userId: string) {
+    await this.client.post(`/admin/users/${userId}/make-admin`);
+  }
+
+  async adminGetReports() {
+    const { data } = await this.client.get('/admin/reports');
+    return data;
+  }
+
+  async reportUser(targetUserId: string, reason: string) {
+    await this.client.post('/report', { targetUserId, reason });
   }
 
   // ===== GOOGLE OAUTH =====

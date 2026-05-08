@@ -1,5 +1,5 @@
 export type AuraMode = 'available' | 'ghost' | 'dnd';
-export type ChatType = 'direct' | 'group' | 'space';
+export type ChatType = 'direct' | 'group' | 'space' | 'channel';
 export type MessageType = 'text' | 'file' | 'image' | 'voice';
 export type StoryType = 'text' | 'image' | 'video';
 
@@ -19,6 +19,13 @@ export interface UserRow {
   created_at: number;
   last_seen: number;
   last_username_change: number;
+  is_admin: number;
+  is_banned: number;
+  is_frozen: number;
+  ban_reason: string | null;
+  bio: string;
+  phone: string | null;
+  birthday: string | null;
 }
 
 export interface StoryRow {
@@ -44,6 +51,9 @@ export interface PublicUser {
   auraMode: AuraMode;
   lastSeen: number;
   createdAt: number;
+  bio: string;
+  birthday: string | null;
+  isAdmin: boolean;
 }
 
 export interface ChatRow {
@@ -54,6 +64,11 @@ export interface ChatRow {
   avatar_color: string;
   created_by: string;
   created_at: number;
+  is_public: number;
+  invite_link: string | null;
+  channel_username: string | null;
+  subscriber_count: number;
+  post_permissions: string;
 }
 
 export interface MessageRow {
@@ -96,5 +111,8 @@ export function rowToPublicUser(row: UserRow): PublicUser {
     auraMode: row.aura_mode,
     lastSeen: row.last_seen,
     createdAt: row.created_at,
+    bio: row.bio || '',
+    birthday: row.birthday ?? null,
+    isAdmin: row.is_admin === 1,
   };
 }

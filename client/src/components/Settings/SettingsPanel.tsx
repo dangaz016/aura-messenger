@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { X, LogOut, Palette, ShieldCheck, Eye, EyeOff, BellOff, Check, Moon, Sparkles, Waves, Bell, Edit3 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { X, LogOut, Palette, ShieldCheck, Eye, EyeOff, BellOff, Check, Moon, Sparkles, Waves, Bell, Edit3, Camera, Loader2, Cake } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useChat } from '../../contexts/ChatContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -15,6 +15,9 @@ const COLORS = [
   '#3B82F6', '#06B6D4', '#10B981', '#F59E0B',
   '#EF4444', '#8B5CF6', '#14B8A6', '#F97316',
 ];
+
+const MONTHS_RU = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+const MONTHS_EN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 const MOOD_PRESETS: { emoji: string; key: TranslationKey }[] = [
   { emoji: '👋', key: 'mood.available' },
@@ -37,18 +40,25 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const { user, updateUser, logout } = useAuth();
   const { updateAuraMode } = useChat();
   const { theme, setTheme } = useTheme();
-  const { t } = useT();
+  const { t, lang } = useT();
   const [displayName, setDisplayName] = useState(user?.displayName || '');
+  const [bio, setBio] = useState(user?.bio || '');
   const [moodEmoji, setMoodEmoji] = useState(user?.moodEmoji || '👋');
   const [moodText, setMoodText] = useState(user?.moodText || 'Available');
   const [color, setColor] = useState(user?.avatarColor || '#7C3AED');
+  // Birthday: stored as "MM-DD"
+  const [bdMonth, setBdMonth] = useState(user?.birthday?.split('-')[0] || '');
+  const [bdDay, setBdDay] = useState(user?.birthday?.split('-')[1] || '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   const [showUsernameChange, setShowUsernameChange] = useState(false);
   const [newUsername, setNewUsername] = useState('');
   const [usernameError, setUsernameError] = useState('');
   const [changingUsername, setChangingUsername] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const MONTHS = lang === 'ru' ? MONTHS_RU : MONTHS_EN;
 
   useEffect(() => {
     if ('Notification' in window) {
@@ -61,7 +71,8 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   async function handleSave() {
     setSaving(true);
     try {
-      const updated = await api.updateProfile({ displayName, moodEmoji, moodText, avatarColor: color });
+      const birthday = bdMonth && bdDay ? `${bdMonth}-${bdDay}` : '';
+      const updated = await api.updateProfile({ displayName, moodEmoji, moodText, avatarColor: color, bio, birthday });
       updateUser(updated);
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
@@ -72,6 +83,32 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
   async function handleAuraMode(mode: AuraMode) {
     await updateAuraMode(mode);
+  }
+
+  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return;
+    setUploadingAvatar(true);
+    try {
+      const uploaded = await api.uploadFile(file);
+      const avatarUrl = api.fileUrl(uploaded.id);
+      const updated = await api.updateProfile({ avatarUrl });
+      updateUser(updated);
+    } catch { /* ignore */ } finally {
+      setUploadingAvatar(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = '';
+    }
+  }
+
+  async function handleRemoveAvatar() {
+    setUploadingAvatar(true);
+    try {
+      const updated = await api.updateProfile({ avatarUrl: '' });
+      updateUser(updated);
+    } catch { /* ignore */ } finally {
+      setUploadingAvatar(false);
+    }
   }
 
   async function handleRequestNotifications() {
@@ -121,8 +158,36 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
           {/* Profile */}
           <Section title={t('settings.section_profile')} icon={<Sparkles className="w-4 h-4" />}>
             <div className="flex items-start gap-4">
-              <Avatar name={displayName} color={color} size={80} emoji={moodEmoji} showStatus={false} />
-              <div className="flex-1 space-y-3">
+              {/* Avatar with upload button */}
+              <div className="relative flex-shrink-0 group cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
+                <Avatar
+                  name={displayName}
+                  color={color}
+                  size={80}
+                  emoji={user.avatarUrl ? undefined : moodEmoji}
+                  showStatus={false}
+                  imageUrl={user.avatarUrl}
+                />
+                <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  {uploadingAvatar
+                    ? <Loader2 className="w-6 h-6 text-white animate-spin" />
+                    : <Camera className="w-6 h-6 text-white" />
+                  }
+                </div>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarUpload}
+                />
+              </div>
+              <div className="flex-1 min-w-0 space-y-3">
+                {user.avatarUrl && (
+                  <button onClick={handleRemoveAvatar} className="text-xs text-aura-dnd hover:underline block">
+                    Удалить фото
+                  </button>
+                )}
                 <div>
                   <Label>{t('settings.display_name')}</Label>
                   <input
@@ -146,6 +211,62 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     </button>
                   </div>
                 </div>
+                <div>
+                  <Label>Bio</Label>
+                  <textarea
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    placeholder={lang === 'ru' ? 'Расскажите о себе…' : 'Tell about yourself…'}
+                    className="input-aura w-full resize-none"
+                    rows={2}
+                    maxLength={300}
+                  />
+                  <div className="text-right text-xs text-aura-text-muted mt-0.5">{bio.length}/300</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Birthday */}
+            <div className="mt-4 flex items-start gap-3 p-3 rounded-xl bg-aura-surface2 border border-aura-border">
+              <Cake className="w-5 h-5 text-pink-400 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <Label>{lang === 'ru' ? 'День рождения' : 'Birthday'}</Label>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <select
+                    value={bdMonth}
+                    onChange={e => { setBdMonth(e.target.value); if (!e.target.value) setBdDay(''); }}
+                    className="input-aura flex-1 min-w-[120px]"
+                  >
+                    <option value="">{lang === 'ru' ? '— Месяц —' : '— Month —'}</option>
+                    {MONTHS.map((m, i) => (
+                      <option key={i + 1} value={String(i + 1).padStart(2, '0')}>{m}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={bdDay}
+                    onChange={e => setBdDay(e.target.value)}
+                    disabled={!bdMonth}
+                    className="input-aura w-[80px] disabled:opacity-40"
+                  >
+                    <option value="">{lang === 'ru' ? '— День —' : '— Day —'}</option>
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                      <option key={d} value={String(d).padStart(2, '0')}>{d}</option>
+                    ))}
+                  </select>
+                  {(bdMonth || bdDay) && (
+                    <button
+                      onClick={() => { setBdMonth(''); setBdDay(''); }}
+                      className="text-xs text-aura-dnd hover:underline whitespace-nowrap"
+                    >
+                      {lang === 'ru' ? 'Удалить' : 'Remove'}
+                    </button>
+                  )}
+                </div>
+                {bdMonth && bdDay && (
+                  <p className="text-xs text-aura-text-muted mt-1.5">
+                    🎂 {MONTHS[parseInt(bdMonth) - 1]} {parseInt(bdDay)}
+                  </p>
+                )}
               </div>
             </div>
 

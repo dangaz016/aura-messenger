@@ -31,8 +31,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await ensurePublicKey(u);
         socketService.connect(token);
       })
-      .catch(() => {
-        api.clearToken();
+      .catch((err) => {
+        // Only clear token on auth errors (401/403/404), not network/server errors
+        const status = err?.response?.status;
+        if (status === 401 || status === 403 || status === 404) {
+          api.clearToken();
+        }
+        // For 500 / network errors: keep token, user stays "logged in" on next visit
       })
       .finally(() => setLoading(false));
   }, []);

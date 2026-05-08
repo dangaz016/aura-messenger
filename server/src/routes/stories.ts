@@ -242,6 +242,53 @@ function storyToPublic(s: StoryRow, viewed: boolean, viewerCount: number) {
   };
 }
 
+// GET /api/stories/:id/comments
+router.get('/:id/comments', (req, res) => {
+  const db = getDb();
+  const rows = db.prepare(`
+    SELECT sc.id, sc.content, sc.created_at,
+      u.id AS user_id, u.display_name, u.username, u.avatar_color, u.avatar_url
+    FROM story_comments sc
+    JOIN users u ON u.id = sc.user_id
+    WHERE sc.story_id = ?
+    ORDER BY sc.created_at ASC
+  `).all(req.params.id) as unknown[];
+  res.json(rows);
+});
+
+// POST /api/stories/:id/comments
+router.post('/:id/comments', (req, res) => {
+  const db = getDb();
+  const { content } = req.body as { content: string };
+  if (!content?.trim() || content.length > 500) {
+    return res.status(400).json({ error: 'Comment required (max 500 chars)' });
+  }
+  const story = db.prepare('SELECT id FROM stories WHERE id = ?').get(req.params.id);
+  if (!story) return res.status(404).json({ error: 'Story not found' });
+  const id = require('crypto').randomUUID();
+  db.prepare('INSERT INTO story_comments (id, story_id, user_id, content) VALUES (?,?,?,?)')
+    .run(id, req.params.id, req.user!.userId, content.trim());
+  const comment = db.prepare(`
+    SELECT sc.id, sc.content, sc.created_at,
+      u.id AS user_id, u.display_name, u.username, u.avatar_color
+    FROM story_comments sc
+    JOIN users u ON u.id = sc.user_id
+    WHERE sc.id = ?
+  `).get(id);
+  res.json(comment);
+});
+
+// DELETE /api/stories/comments/:commentId
+router.delete('/comments/:commentId', (req, res) => {
+  const db = getDb();
+  const comment = db.prepare('SELECT user_id FROM story_comments WHERE id = ?').get(req.params.commentId) as
+    { user_id: string } | undefined;
+  if (!comment) return res.status(404).json({ error: 'Comment not found' });
+  if (comment.user_id !== req.user!.userId) return res.status(403).json({ error: 'Forbidden' });
+  db.prepare('DELETE FROM story_comments WHERE id = ?').run(req.params.commentId);
+  res.json({ success: true });
+});
+
 // Cleanup job: delete expired stories
 export function startStoryCleanup() {
   setInterval(() => {

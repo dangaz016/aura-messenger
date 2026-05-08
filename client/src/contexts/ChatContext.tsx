@@ -3,6 +3,7 @@ import { Chat, Message, UserStatus, TypingEvent, AuraMode } from '../types';
 import { api } from '../services/api';
 import { socketService } from '../services/socket';
 import { useAuth } from './AuthContext';
+import { playNotificationSound } from './ToastContext';
 
 interface ChatContextValue {
   chats: Chat[];
@@ -57,6 +58,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         return next;
       });
       refreshChats();
+      // Play sound & show toast for messages from others in non-active chats
+      setActiveChatId(prevActive => {
+        if (msg.senderId !== user?.id && msg.chatId !== prevActive) {
+          playNotificationSound();
+          // Dispatch custom event for toast display
+          window.dispatchEvent(new CustomEvent('aura:newMessage', { detail: msg }));
+        }
+        return prevActive;
+      });
     });
 
     const unsubStatus = socketService.onUserStatus((s) => {

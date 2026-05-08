@@ -2,6 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Default theme CSS variables (Dark) — overridden by ThemeContext */
+:root {
+  --aura-bg: #0d0d1a;
+  --aura-surface: #13131f;
+  --aura-surface2: #1a1a2e;
+  --aura-elevated: #1e1e35;
+  --aura-border: #2a2a44;
+  --aura-border-light: #373760;
+  --aura-accent: #7C3AED;
+  --aura-accent-light: #A78BFA;
+  --aura-accent-dim: rgba(124, 58, 237, 0.15);
+}
+
 @layer base {
   * {
     box-sizing: border-box;
@@ -63,7 +76,7 @@
   }
 
   .glow-primary {
-    box-shadow: 0 0 20px rgba(124, 58, 237, 0.3);
+    box-shadow: 0 0 20px var(--aura-accent-dim, rgba(124, 58, 237, 0.3));
   }
 
   .btn-primary {
@@ -84,12 +97,12 @@
 }
 
 .message-bubble-out {
-  background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%);
+  background: linear-gradient(135deg, var(--aura-accent) 0%, color-mix(in srgb, var(--aura-accent) 80%, #000) 100%);
   color: white;
 }
 
 .message-bubble-in {
-  background: #1e1e35;
+  background: var(--aura-elevated);
   color: #e8e8f0;
 }
 

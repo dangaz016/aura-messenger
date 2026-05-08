@@ -19,7 +19,7 @@ const QUICK_EMOJIS = ['😀', '😂', '😍', '🥰', '😎', '🤔', '👀', '�
 
 interface MessageInputProps {
   chatId: string;
-  chatType: 'direct' | 'group' | 'space';
+  chatType: 'direct' | 'group' | 'space' | 'channel';
 }
 
 export function MessageInput({ chatId }: MessageInputProps) {
