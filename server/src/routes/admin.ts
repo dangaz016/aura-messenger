@@ -130,26 +130,40 @@ router.post('/users/:id/remove-admin', (req, res) => {
 });
 
 // GET /api/admin/reports
-router.get('/reports', (_req, res) => {
+router.get('/reports', (req, res) => {
   const db = getDb();
-  const rows = db.prepare(`
+  const showResolved = req.query.resolved === '1';
+  const type = req.query.type as string | undefined;
+
+  let sql = `
     SELECT r.*, 
       u1.username AS reporter_username, u1.display_name AS reporter_name,
-      u2.username AS target_username, u2.display_name AS target_name
+      u2.username AS target_username, u2.display_name AS target_name,
+      u3.username AS resolved_by_username
     FROM reports r
     LEFT JOIN users u1 ON u1.id = r.reporter_id
     LEFT JOIN users u2 ON u2.id = r.target_user_id
-    WHERE r.resolved = 0
-    ORDER BY r.created_at DESC
-    LIMIT 100
-  `).all() as unknown[];
+    LEFT JOIN users u3 ON u3.id = r.resolved_by
+    WHERE r.resolved = ?
+  `;
+  const params: (number | string)[] = [showResolved ? 1 : 0];
+
+  if (type) {
+    sql += ' AND r.type = ?';
+    params.push(type);
+  }
+
+  sql += ' ORDER BY r.created_at DESC LIMIT 200';
+  const rows = db.prepare(sql).all(...params) as unknown[];
   res.json(rows);
 });
 
 // POST /api/admin/reports/:id/resolve
 router.post('/reports/:id/resolve', (req, res) => {
   const db = getDb();
-  db.prepare('UPDATE reports SET resolved = 1 WHERE id = ?').run(req.params.id);
+  const { adminNote } = req.body as { adminNote?: string };
+  db.prepare('UPDATE reports SET resolved = 1, resolved_by = ?, resolved_at = unixepoch(), admin_note = ? WHERE id = ?')
+    .run((req as any).user?.userId, adminNote || null, req.params.id);
   res.json({ success: true });
 });
 
@@ -193,19 +207,31 @@ router.get('/backup', (req, res) => {
   }
 });
 
-// POST /api/admin/report (from regular users)
+// POST /api/report (from regular users) — extended with type + category
 export const reportRouter = Router();
 reportRouter.use(authenticateToken);
 reportRouter.post('/', (req, res) => {
   const db = getDb();
-  const { targetUserId, targetMessageId, reason } = req.body as {
+  const { targetUserId, targetMessageId, reason, type, category } = req.body as {
     targetUserId?: string;
     targetMessageId?: string;
     reason: string;
+    type?: string; // 'user' | 'message' | 'bug' | 'content' | 'other'
+    category?: string;
   };
   if (!reason?.trim()) return res.status(400).json({ error: 'Reason required' });
-  db.prepare('INSERT INTO reports (id, reporter_id, target_user_id, target_message_id, reason) VALUES (?,?,?,?,?)')
-    .run(uuidv4(), req.user!.userId, targetUserId || null, targetMessageId || null, reason.trim());
+
+  const VALID_TYPES = ['user', 'message', 'bug', 'content', 'spam', 'other'];
+  const reportType = VALID_TYPES.includes(type || '') ? type : 'other';
+
+  // Rate limit: max 5 reports per hour per user
+  const hourAgo = Math.floor(Date.now() / 1000) - 3600;
+  const recentCount = (db.prepare('SELECT COUNT(*) as c FROM reports WHERE reporter_id = ? AND created_at > ?')
+    .get(req.user!.userId, hourAgo) as { c: number }).c;
+  if (recentCount >= 5) return res.status(429).json({ error: 'Too many reports. Try again later.' });
+
+  db.prepare('INSERT INTO reports (id, reporter_id, target_user_id, target_message_id, reason, type, category) VALUES (?,?,?,?,?,?,?)')
+    .run(uuidv4(), req.user!.userId, targetUserId || null, targetMessageId || null, reason.trim(), reportType, category || null);
   res.json({ success: true });
 });
 

@@ -359,9 +359,16 @@ router.patch('/:id/settings', (req, res) => {
   if (!member || member.role !== 'admin') {
     return res.status(403).json({ error: 'Admin required' });
   }
-  const { name, description, isPublic, channelUsername, postPermissions, avatarColor } = req.body as {
+  const {
+    name, description, isPublic, channelUsername, postPermissions, avatarColor,
+    slowMode, joinApproval, reactionsEnabled, historyVisible,
+    mediaEnabled, linksEnabled, signMessages, maxMembers,
+  } = req.body as {
     name?: string; description?: string; isPublic?: boolean;
     channelUsername?: string; postPermissions?: string; avatarColor?: string;
+    slowMode?: number; joinApproval?: boolean; reactionsEnabled?: boolean;
+    historyVisible?: boolean; mediaEnabled?: boolean; linksEnabled?: boolean;
+    signMessages?: boolean; maxMembers?: number;
   };
 
   if (channelUsername !== undefined) {
@@ -374,6 +381,13 @@ router.patch('/:id/settings', (req, res) => {
     }
   }
 
+  if (slowMode !== undefined && (typeof slowMode !== 'number' || slowMode < 0 || slowMode > 3600)) {
+    return res.status(400).json({ error: 'slowMode must be 0–3600 seconds' });
+  }
+  if (maxMembers !== undefined && (typeof maxMembers !== 'number' || maxMembers < 0)) {
+    return res.status(400).json({ error: 'maxMembers must be >= 0' });
+  }
+
   const updates: string[] = [];
   const values: unknown[] = [];
   if (name !== undefined) { updates.push('name = ?'); values.push(name.trim() || null); }
@@ -382,6 +396,14 @@ router.patch('/:id/settings', (req, res) => {
   if (channelUsername !== undefined) { updates.push('channel_username = ?'); values.push(channelUsername || null); }
   if (postPermissions !== undefined) { updates.push('post_permissions = ?'); values.push(postPermissions); }
   if (avatarColor !== undefined) { updates.push('avatar_color = ?'); values.push(avatarColor); }
+  if (slowMode !== undefined) { updates.push('slow_mode = ?'); values.push(slowMode); }
+  if (joinApproval !== undefined) { updates.push('join_approval = ?'); values.push(joinApproval ? 1 : 0); }
+  if (reactionsEnabled !== undefined) { updates.push('reactions_enabled = ?'); values.push(reactionsEnabled ? 1 : 0); }
+  if (historyVisible !== undefined) { updates.push('history_visible = ?'); values.push(historyVisible ? 1 : 0); }
+  if (mediaEnabled !== undefined) { updates.push('media_enabled = ?'); values.push(mediaEnabled ? 1 : 0); }
+  if (linksEnabled !== undefined) { updates.push('links_enabled = ?'); values.push(linksEnabled ? 1 : 0); }
+  if (signMessages !== undefined) { updates.push('sign_messages = ?'); values.push(signMessages ? 1 : 0); }
+  if (maxMembers !== undefined) { updates.push('max_members = ?'); values.push(maxMembers); }
 
   if (updates.length > 0) {
     values.push(chatId);

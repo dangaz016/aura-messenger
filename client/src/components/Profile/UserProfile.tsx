@@ -1,15 +1,47 @@
 import { useState, useEffect } from 'react';
-import { X, MessageCircle, UserCheck, UserX, Shield, Flag, Copy, Check, Clock } from 'lucide-react';
+import { X, MessageCircle, Shield, Flag, Copy, Check, Clock, ShieldCheck, Phone, Cake, CalendarDays } from 'lucide-react';
 import { User, AuraMode } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { useChat } from '../../contexts/ChatContext';
 import { api } from '../../services/api';
 import { getInitials } from '../../utils/formatters';
+import { PrimePill } from '../Common/PrimeBadge';
+import { ReportModal } from '../Common/ReportModal';
 
 interface UserProfileProps {
   userId: string;
   onClose: () => void;
   onStartChat?: () => void;
+}
+
+const STATUS_COLOR: Record<AuraMode, string> = {
+  available: '#22c55e',
+  ghost: '#f59e0b',
+  dnd: '#ef4444',
+};
+const STATUS_LABEL: Record<AuraMode, string> = {
+  available: 'Онлайн',
+  ghost: 'Призрак',
+  dnd: 'Не беспокоить',
+};
+
+function lastSeenText(ts: number) {
+  if (!ts) return null;
+  const mins = Math.floor((Date.now() / 1000 - ts) / 60);
+  if (mins < 2) return 'только что';
+  if (mins < 60) return `${mins} мин назад`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}ч назад`;
+  return `${Math.floor(hrs / 24)}д назад`;
+}
+
+function formatBirthday(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const [mm, dd] = raw.split('-');
+  const MONTHS = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+  const m = parseInt(mm) - 1;
+  if (m < 0 || m > 11) return null;
+  return `${parseInt(dd)} ${MONTHS[m]}`;
 }
 
 export function UserProfile({ userId, onClose, onStartChat }: UserProfileProps) {
@@ -19,9 +51,8 @@ export function UserProfile({ userId, onClose, onStartChat }: UserProfileProps) 
   const [loading, setLoading] = useState(true);
   const [copiedUsername, setCopiedUsername] = useState(false);
   const [showReport, setShowReport] = useState(false);
-  const [reportReason, setReportReason] = useState('');
-  const [reporting, setReporting] = useState(false);
-  const [reported, setReported] = useState(false);
+
+  const isMe = userId === me?.id;
 
   useEffect(() => {
     setLoading(true);
@@ -46,187 +77,182 @@ export function UserProfile({ userId, onClose, onStartChat }: UserProfileProps) 
     setTimeout(() => setCopiedUsername(false), 2000);
   }
 
-  async function handleReport() {
-    if (!profile || !reportReason.trim()) return;
-    setReporting(true);
-    try {
-      await api.reportUser(profile.id, reportReason.trim());
-      setReported(true);
-      setTimeout(() => setShowReport(false), 2000);
-    } catch { /* ignore */ }
-    setReporting(false);
-  }
-
-  const statusColor = {
-    available: '#22c55e',
-    ghost: '#f59e0b',
-    dnd: '#ef4444',
-  };
-  const statusLabel = {
-    available: 'Online',
-    ghost: 'Ghost mode',
-    dnd: 'Do Not Disturb',
-  };
-  const lastSeenText = (ts: number) => {
-    const mins = Math.floor((Date.now() / 1000 - ts) / 60);
-    if (mins < 2) return 'just now';
-    if (mins < 60) return `${mins} min ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
-  };
+  const birthday = formatBirthday(profile?.birthday);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
-      onClick={onClose}>
-      <div className="bg-aura-surface border border-aura-border rounded-2xl w-full max-w-sm overflow-hidden animate-scale-in"
-        onClick={e => e.stopPropagation()}>
+    <>
+      <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+        onClick={onClose}>
+        <div className="bg-aura-surface border border-aura-border rounded-2xl w-full max-w-sm overflow-hidden animate-scale-in shadow-2xl"
+          onClick={e => e.stopPropagation()}>
 
-        {loading ? (
-          <div className="p-12 flex items-center justify-center">
-            <div className="w-8 h-8 rounded-full border-2 border-aura-primary border-t-transparent animate-spin" />
-          </div>
-        ) : !profile ? (
-          <div className="p-8 text-center text-aura-text-muted">User not found</div>
-        ) : (
-          <>
-            {/* Header gradient banner */}
-            <div className="relative h-28" style={{ background: `linear-gradient(135deg, ${profile.avatarColor} 0%, ${profile.avatarColor}88 100%)` }}>
-              <button onClick={onClose} className="absolute top-3 right-3 p-1.5 bg-black/30 hover:bg-black/50 rounded-full text-white transition-colors">
-                <X className="w-4 h-4" />
-              </button>
+          {loading ? (
+            <div className="p-12 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full border-2 border-aura-primary border-t-transparent animate-spin" />
             </div>
-
-            {/* Avatar */}
-            <div className="px-5 pb-1">
-              <div className="relative -mt-12 mb-3 inline-flex">
-                <div
-                  className="w-20 h-20 rounded-full border-4 border-aura-surface flex items-center justify-center text-white text-2xl font-bold shadow-xl"
-                  style={{ background: `linear-gradient(135deg, ${profile.avatarColor} 0%, ${profile.avatarColor}cc 100%)` }}
-                >
-                  {profile.avatarUrl ? (
-                    <img src={profile.avatarUrl} alt="" className="w-full h-full rounded-full object-cover" />
-                  ) : (
-                    getInitials(profile.displayName)
-                  )}
-                </div>
-                {/* Status indicator */}
-                <div className="absolute bottom-1 right-1 w-4 h-4 rounded-full border-2 border-aura-surface"
-                  style={{ backgroundColor: statusColor[profile.auraMode as AuraMode] || '#6b6b8d' }} />
-              </div>
-
-              {/* Name + username */}
-              <div className="mb-3">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-bold truncate">{profile.displayName}</h2>
-                  {profile.isAdmin && (
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-aura-primary/20 text-aura-primary-light flex items-center gap-1">
-                      <Shield className="w-3 h-3" /> Admin
-                    </span>
-                  )}
-                </div>
-                <button
-                  onClick={copyUsername}
-                  className="flex items-center gap-1 text-aura-text-muted hover:text-aura-text transition-colors text-sm mt-0.5"
-                >
-                  {copiedUsername ? <Check className="w-3.5 h-3.5 text-aura-online" /> : <Copy className="w-3.5 h-3.5" />}
-                  @{profile.username}
+          ) : !profile ? (
+            <div className="p-8 text-center text-aura-text-muted">Пользователь не найден</div>
+          ) : (
+            <>
+              {/* Banner */}
+              <div className="relative h-28 overflow-hidden"
+                style={{ background: `linear-gradient(135deg, ${profile.avatarColor} 0%, ${profile.avatarColor}88 100%)` }}>
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/30" />
+                <button onClick={onClose}
+                  className="absolute top-3 right-3 p-1.5 bg-black/30 hover:bg-black/50 rounded-full text-white transition-colors">
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Mood */}
-              {(profile.moodEmoji || profile.moodText) && (
-                <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl bg-aura-surface2">
-                  <span className="text-lg">{profile.moodEmoji}</span>
-                  <span className="text-sm text-aura-text-dim">{profile.moodText}</span>
-                </div>
-              )}
-
-              {/* Bio */}
-              {profile.bio && (
-                <div className="mb-3 text-sm text-aura-text-dim leading-relaxed">{profile.bio}</div>
-              )}
-
-              {/* Status */}
-              <div className="flex items-center gap-2 mb-4 text-sm">
-                <div className="w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: statusColor[profile.auraMode as AuraMode] || '#6b6b8d' }} />
-                <span style={{ color: statusColor[profile.auraMode as AuraMode] }}>
-                  {statusLabel[profile.auraMode as AuraMode] || profile.auraMode}
-                </span>
-                {profile.auraMode !== 'available' && (
-                  <span className="text-aura-text-muted flex items-center gap-1 ml-1">
-                    <Clock className="w-3 h-3" />
-                    {lastSeenText(profile.lastSeen)}
-                  </span>
-                )}
-              </div>
-
-              {/* Actions */}
-              {me?.id !== profile.id && (
-                <div className="flex gap-2 mb-4">
-                  <button
-                    onClick={handleStartChat}
-                    className="flex-1 flex items-center justify-center gap-2 bg-aura-primary hover:bg-aura-primary-light text-white px-4 py-2.5 rounded-xl font-medium transition-colors"
-                  >
-                    <MessageCircle className="w-4 h-4" />
-                    Message
-                  </button>
-                  <button
-                    onClick={() => setShowReport(true)}
-                    className="p-2.5 rounded-xl bg-aura-surface2 hover:bg-aura-elevated border border-aura-border transition-colors text-aura-text-muted hover:text-aura-dnd"
-                    title="Report"
-                  >
-                    <Flag className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-
-              {/* Info rows */}
-              <div className="border-t border-aura-border pt-3 pb-4 space-y-2 text-xs text-aura-text-muted">
-                <div className="flex justify-between">
-                  <span>Member since</span>
-                  <span>{new Date(profile.createdAt * 1000).toLocaleDateString()}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Report modal */}
-            {showReport && (
-              <div className="border-t border-aura-border p-4">
-                <div className="text-sm font-medium mb-2 flex items-center gap-2 text-aura-dnd">
-                  <Flag className="w-4 h-4" /> Report user
-                </div>
-                {reported ? (
-                  <div className="flex items-center gap-2 text-aura-online text-sm">
-                    <Check className="w-4 h-4" /> Reported successfully
-                  </div>
-                ) : (
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={reportReason}
-                      onChange={e => setReportReason(e.target.value)}
-                      placeholder="Reason (spam, abuse, etc.)"
-                      className="flex-1 bg-aura-surface2 border border-aura-border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-aura-dnd"
-                    />
-                    <button
-                      onClick={handleReport}
-                      disabled={reporting || !reportReason.trim()}
-                      className="px-3 py-1.5 bg-aura-dnd/20 hover:bg-aura-dnd/30 text-aura-dnd rounded-lg text-sm disabled:opacity-50 transition-colors"
+              <div className="px-5 pb-5">
+                {/* Avatar row */}
+                <div className="relative -mt-12 mb-3 flex items-end justify-between">
+                  <div className="relative">
+                    <div
+                      className="w-20 h-20 rounded-full border-4 border-aura-surface flex items-center justify-center text-white text-2xl font-bold shadow-xl overflow-hidden"
+                      style={{ background: `linear-gradient(135deg, ${profile.avatarColor} 0%, ${profile.avatarColor}cc 100%)` }}
                     >
-                      {reporting ? '...' : 'Send'}
-                    </button>
-                    <button onClick={() => setShowReport(false)} className="px-3 py-1.5 bg-aura-elevated rounded-lg text-sm">
-                      Cancel
-                    </button>
+                      {profile.avatarUrl
+                        ? <img src={profile.avatarUrl} alt="" className="w-full h-full object-cover" />
+                        : getInitials(profile.displayName)
+                      }
+                    </div>
+                    {/* Prime animated border indicator */}
+                    {profile.isPrime && (
+                      <div className="absolute -bottom-1 -right-1 text-base">
+                        {profile.primeBadge === 'star' ? '⭐' : profile.primeBadge === 'diamond' ? '💎' : profile.primeBadge === 'fire' ? '🔥' : profile.primeBadge === 'lightning' ? '⚡' : profile.primeBadge === 'crystal' ? '🔮' : '👑'}
+                      </div>
+                    )}
+                    {/* Online dot */}
+                    <div className="absolute bottom-1 right-1 w-4 h-4 rounded-full border-2 border-aura-surface"
+                      style={{ backgroundColor: STATUS_COLOR[profile.auraMode as AuraMode] || '#6b6b8d' }} />
+                  </div>
+
+                  {!isMe && (
+                    <div className="flex gap-2 mb-1">
+                      <button
+                        onClick={handleStartChat}
+                        className="flex items-center gap-1.5 bg-aura-primary hover:bg-aura-primary-light text-white px-4 py-2 rounded-xl font-medium transition-colors text-sm"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        Написать
+                      </button>
+                      <button
+                        onClick={() => setShowReport(true)}
+                        className="p-2 rounded-xl bg-aura-surface2 hover:bg-aura-elevated border border-aura-border transition-colors text-aura-text-muted hover:text-aura-dnd"
+                        title="Пожаловаться"
+                      >
+                        <Flag className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Name + badges */}
+                <div className="mb-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-xl font-bold leading-tight">{profile.displayName}</h2>
+                    {profile.isAdmin && (
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-aura-primary/20 text-aura-primary-light flex items-center gap-1">
+                        <Shield className="w-3 h-3" /> Admin
+                      </span>
+                    )}
+                    {profile.isPrime && <PrimePill user={profile} />}
+                  </div>
+                  <button onClick={copyUsername}
+                    className="flex items-center gap-1 text-aura-text-muted hover:text-aura-text transition-colors text-sm mt-0.5">
+                    {copiedUsername ? <Check className="w-3.5 h-3.5 text-aura-online" /> : <Copy className="w-3.5 h-3.5" />}
+                    @{profile.username}
+                  </button>
+                </div>
+
+                {/* Mood */}
+                {(profile.moodEmoji || profile.moodText) && (
+                  <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl bg-aura-surface2 border border-aura-border">
+                    <span className="text-lg">{profile.moodEmoji}</span>
+                    <span className="text-sm text-aura-text-dim">{profile.moodText}</span>
                   </div>
                 )}
+
+                {/* Bio */}
+                {profile.bio && (
+                  <div className="mb-3 text-sm text-aura-text-dim leading-relaxed whitespace-pre-wrap break-words">
+                    {profile.bio}
+                  </div>
+                )}
+
+                {/* Info rows */}
+                <div className="space-y-2 mb-4">
+                  {/* Status */}
+                  <div className="flex items-center gap-2.5 text-sm">
+                    <div className="w-4 h-4 flex items-center justify-center flex-shrink-0">
+                      <div className="w-2.5 h-2.5 rounded-full"
+                        style={{ backgroundColor: STATUS_COLOR[profile.auraMode as AuraMode] || '#6b6b8d' }} />
+                    </div>
+                    <span style={{ color: STATUS_COLOR[profile.auraMode as AuraMode] }}>
+                      {STATUS_LABEL[profile.auraMode as AuraMode] || profile.auraMode}
+                    </span>
+                    {profile.auraMode !== 'available' && profile.lastSeen > 0 && (
+                      <span className="text-aura-text-muted flex items-center gap-1 text-xs">
+                        <Clock className="w-3 h-3" />
+                        {lastSeenText(profile.lastSeen)}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Birthday */}
+                  {birthday && (
+                    <div className="flex items-center gap-2.5 text-sm text-aura-text-dim">
+                      <Cake className="w-4 h-4 text-pink-400 flex-shrink-0" />
+                      <span>День рождения: <span className="text-aura-text">{birthday}</span></span>
+                    </div>
+                  )}
+
+                  {/* Phone (if visible) */}
+                  {profile.phone && (
+                    <div className="flex items-center gap-2.5 text-sm text-aura-text-dim">
+                      <Phone className="w-4 h-4 text-aura-text-muted flex-shrink-0" />
+                      <span>{profile.phone}</span>
+                    </div>
+                  )}
+
+                  {/* E2E encryption */}
+                  {profile.publicKey && (
+                    <div className="flex items-center gap-2.5 text-sm text-aura-text-dim">
+                      <ShieldCheck className="w-4 h-4 text-aura-primary-light flex-shrink-0" />
+                      <span>Сквозное шифрование активно</span>
+                    </div>
+                  )}
+
+                  {/* Telegram */}
+                  {profile.hasTelegram && (
+                    <div className="flex items-center gap-2.5 text-sm text-[#2AABEE]">
+                      <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-1.97 9.289c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.932z"/>
+                      </svg>
+                      <span>Telegram привязан</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer: joined date */}
+                <div className="border-t border-aura-border pt-3 flex items-center gap-2 text-xs text-aura-text-muted">
+                  <CalendarDays className="w-3.5 h-3.5" />
+                  <span>В Aura с {new Date(profile.createdAt * 1000).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}</span>
+                </div>
               </div>
-            )}
-          </>
-        )}
+            </>
+          )}
+        </div>
       </div>
-    </div>
+
+      {showReport && profile && (
+        <ReportModal
+          onClose={() => setShowReport(false)}
+          targetUserId={profile.id}
+          targetName={profile.displayName}
+        />
+      )}
+    </>
   );
 }

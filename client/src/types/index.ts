@@ -2,6 +2,19 @@ export type AuraMode = 'available' | 'ghost' | 'dnd';
 export type ChatType = 'direct' | 'group' | 'space' | 'channel';
 export type MessageType = 'text' | 'file' | 'image' | 'voice' | 'video';
 export type StoryType = 'text' | 'image' | 'video';
+export type PrivacyLevel = 'everyone' | 'contacts' | 'nobody';
+
+export interface PrivacySettings {
+  lastSeen: PrivacyLevel;
+  avatar: PrivacyLevel;
+  bio: PrivacyLevel;
+  birthday: PrivacyLevel;
+  phone: PrivacyLevel;
+  online: PrivacyLevel;
+  readReceipts: boolean;
+  forwardFrom: boolean;
+  groups: PrivacyLevel;
+}
 
 export interface User {
   id: string;
@@ -23,6 +36,7 @@ export interface User {
   banReason?: string | null;
   freezeReason?: string | null;
   freezeUntil?: number;
+  phone?: string | null;
   // Aura Prime
   isPrime?: boolean;
   primeExpiresAt?: number;
@@ -31,6 +45,8 @@ export interface User {
   primeAnimatedAvatar?: boolean;
   // Linked accounts
   hasTelegram?: boolean;
+  // Privacy settings (only for own profile)
+  privacy?: PrivacySettings;
 }
 
 export interface Story {
@@ -93,12 +109,21 @@ export interface Chat {
   otherUser?: User | null;
   lastMessage: LastMessage | null;
   unreadCount: number;
-  // Channel fields
+  // Channel/group fields
   isPublic?: boolean;
   inviteLink?: string | null;
   channelUsername?: string | null;
   subscriberCount?: number;
   postPermissions?: string;
+  // Extended group settings
+  slowMode?: number;
+  joinApproval?: boolean;
+  reactionsEnabled?: boolean;
+  historyVisible?: boolean;
+  mediaEnabled?: boolean;
+  linksEnabled?: boolean;
+  signMessages?: boolean;
+  maxMembers?: number;
 }
 
 export interface Reaction {

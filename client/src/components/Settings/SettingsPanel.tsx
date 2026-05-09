@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, LogOut, Palette, ShieldCheck, Eye, EyeOff, BellOff, Check, Moon, Sparkles, Waves, Bell, Edit3, Camera, Loader2, Cake, Crown } from 'lucide-react';
+import { X, LogOut, Palette, ShieldCheck, Eye, EyeOff, BellOff, Check, Moon, Sparkles, Waves, Bell, Edit3, Camera, Loader2, Cake, Crown, Lock } from 'lucide-react';
 import { AuraPrimePanel } from './AuraPrimePanel';
+import { PrivacySettingsPanel } from './PrivacySettingsPanel';
 import { useAuth } from '../../contexts/AuthContext';
 import { useChat } from '../../contexts/ChatContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -420,7 +421,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
             </div>
           </Section>
 
-          {/* Privacy */}
+          {/* Privacy — security info */}
           <Section title={t('settings.section_privacy')} icon={<ShieldCheck className="w-4 h-4" />}>
             <div className="space-y-2 text-sm text-aura-text-dim">
               <div className="flex items-center gap-2"><Check className="w-4 h-4 text-aura-online" />{t('settings.privacy_e2e')}</div>
@@ -434,6 +435,11 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 {user.publicKey.slice(0, 32)}...
               </div>
             )}
+          </Section>
+
+          {/* Privacy — who can see */}
+          <Section title="Конфиденциальность" icon={<Lock className="w-4 h-4 text-aura-primary-light" />}>
+            <PrivacySettingsPanel />
           </Section>
 
           {/* Notifications */}

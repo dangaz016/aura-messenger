@@ -212,6 +212,43 @@ function initializeSchema(db: Database.Database) {
   try { db.exec("ALTER TABLE users ADD COLUMN prime_theme TEXT DEFAULT 'default'"); } catch { /* already exists */ }
   try { db.exec("ALTER TABLE users ADD COLUMN prime_badge TEXT DEFAULT 'crown'"); } catch { /* already exists */ }
   try { db.exec("ALTER TABLE users ADD COLUMN prime_animated_avatar INTEGER DEFAULT 0"); } catch { /* already exists */ }
+  // Migrations: Privacy settings (visibility: 'everyone' | 'contacts' | 'nobody')
+  try { db.exec("ALTER TABLE users ADD COLUMN privacy_last_seen TEXT DEFAULT 'everyone'"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE users ADD COLUMN privacy_avatar TEXT DEFAULT 'everyone'"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE users ADD COLUMN privacy_bio TEXT DEFAULT 'everyone'"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE users ADD COLUMN privacy_birthday TEXT DEFAULT 'contacts'"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE users ADD COLUMN privacy_phone TEXT DEFAULT 'nobody'"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE users ADD COLUMN privacy_online TEXT DEFAULT 'everyone'"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE users ADD COLUMN privacy_read_receipts INTEGER DEFAULT 1"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE users ADD COLUMN privacy_forward_from INTEGER DEFAULT 1"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE users ADD COLUMN privacy_groups TEXT DEFAULT 'everyone'"); } catch { /* already exists */ }
+  // Migrations: reports — add type and category fields
+  try { db.exec("ALTER TABLE reports ADD COLUMN type TEXT DEFAULT 'user'"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE reports ADD COLUMN category TEXT DEFAULT 'other'"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE reports ADD COLUMN resolved_by TEXT REFERENCES users(id)"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE reports ADD COLUMN resolved_at INTEGER"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE reports ADD COLUMN admin_note TEXT"); } catch { /* already exists */ }
+  // Migrations: group/channel extra settings
+  try { db.exec("ALTER TABLE chats ADD COLUMN slow_mode INTEGER DEFAULT 0"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE chats ADD COLUMN join_approval INTEGER DEFAULT 0"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE chats ADD COLUMN reactions_enabled INTEGER DEFAULT 1"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE chats ADD COLUMN history_visible INTEGER DEFAULT 1"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE chats ADD COLUMN media_enabled INTEGER DEFAULT 1"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE chats ADD COLUMN links_enabled INTEGER DEFAULT 1"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE chats ADD COLUMN sign_messages INTEGER DEFAULT 0"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE chats ADD COLUMN max_members INTEGER DEFAULT 0"); } catch { /* already exists */ }
+  // join requests table for groups with join_approval=1
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS join_requests (
+      id TEXT PRIMARY KEY,
+      chat_id TEXT NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      message TEXT,
+      created_at INTEGER DEFAULT (unixepoch()),
+      status TEXT DEFAULT 'pending',
+      UNIQUE(chat_id, user_id)
+    )
+  `);
 }
 
 export function closeDb() {

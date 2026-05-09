@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import { User, Chat, Message, AuraMode, StoryGroup, Story, StoryType, StoryViewer } from '../types';
+import { User, Chat, Message, AuraMode, StoryGroup, Story, StoryType, StoryViewer, PrivacySettings } from '../types';
 
 const TOKEN_KEY = 'aura_token';
 
@@ -227,14 +227,6 @@ class ApiService {
     return data.chat;
   }
 
-  async updateChatSettings(chatId: string, settings: {
-    name?: string; description?: string; isPublic?: boolean;
-    channelUsername?: string; postPermissions?: string; avatarColor?: string;
-  }) {
-    const { data } = await this.client.patch(`/chats/${chatId}/settings`, settings);
-    return data.chat;
-  }
-
   async joinByInviteLink(inviteLink: string) {
     const { data } = await this.client.post<{ chatId: string; chat: Chat }>(`/chats/join/${inviteLink}`);
     return data;
@@ -286,7 +278,7 @@ class ApiService {
   }
 
   async reportUser(targetUserId: string, reason: string) {
-    await this.client.post('/report', { targetUserId, reason });
+    await this.client.post('/report', { targetUserId, reason, type: 'user' });
   }
 
   async generateInviteLink(chatId: string) {
@@ -350,6 +342,45 @@ class ApiService {
   async primeRevoke(userId: string) {
     const { data } = await this.client.post<{ user: User }>('/prime/revoke', { userId });
     return data.user;
+  }
+
+  // ===== PRIVACY =====
+  async updatePrivacy(settings: Partial<PrivacySettings>) {
+    const { data } = await this.client.patch<{ user: User }>('/users/privacy', settings);
+    return data.user;
+  }
+
+  // ===== REPORTS =====
+  async submitReport(payload: {
+    targetUserId?: string;
+    targetMessageId?: string;
+    reason: string;
+    type: 'user' | 'message' | 'bug' | 'content' | 'spam' | 'other';
+    category?: string;
+  }) {
+    const { data } = await this.client.post<{ success: boolean }>('/report', payload);
+    return data;
+  }
+
+  // ===== CHAT SETTINGS (extended) =====
+  async updateChatSettings(chatId: string, settings: {
+    name?: string;
+    description?: string;
+    isPublic?: boolean;
+    channelUsername?: string;
+    postPermissions?: string;
+    avatarColor?: string;
+    slowMode?: number;
+    joinApproval?: boolean;
+    reactionsEnabled?: boolean;
+    historyVisible?: boolean;
+    mediaEnabled?: boolean;
+    linksEnabled?: boolean;
+    signMessages?: boolean;
+    maxMembers?: number;
+  }) {
+    const { data } = await this.client.patch<{ chat: Chat }>(`/chats/${chatId}/settings`, settings);
+    return data.chat;
   }
 }
 

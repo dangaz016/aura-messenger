@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { X, Image as ImageIcon, FileText, Users, Trash2, LogOut, Ban, Hash, Radio } from 'lucide-react';
+import { X, Image as ImageIcon, FileText, Users, Trash2, LogOut, Ban, Hash, Radio, Settings2, Flag } from 'lucide-react';
 import { Chat, ChatMember } from '../../types';
 import { Avatar } from '../Common/Avatar';
 import { MediaLightbox } from '../Common/MediaLightbox';
 import { api } from '../../services/api';
+import { GroupSettings } from './GroupSettings';
+import { ReportModal } from '../Common/ReportModal';
 
 interface MediaItem {
   id: string;
@@ -27,6 +29,8 @@ export function ChatInfoPanel({ chat, currentUserId, isOpen, onClose }: ChatInfo
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showGroupSettings, setShowGroupSettings] = useState(false);
+  const [showReport, setShowReport] = useState(false);
 
   useEffect(() => {
     if (isOpen && activeTab === 'media') {
@@ -73,7 +77,17 @@ export function ChatInfoPanel({ chat, currentUserId, isOpen, onClose }: ChatInfo
             <X className="w-5 h-5" />
           </button>
           <h2 className="font-semibold">Информация</h2>
-          <div className="w-9" />
+          {isGroup && chat.members?.find(m => m.id === currentUserId)?.role === 'admin' ? (
+            <button
+              onClick={() => setShowGroupSettings(true)}
+              className="p-2 hover:bg-aura-surface2 rounded-lg transition-colors text-aura-text-muted hover:text-aura-text"
+              title="Настройки"
+            >
+              <Settings2 className="w-5 h-5" />
+            </button>
+          ) : (
+            <div className="w-9" />
+          )}
         </div>
 
         {/* Chat avatar + name */}
@@ -264,6 +278,13 @@ export function ChatInfoPanel({ chat, currentUserId, isOpen, onClose }: ChatInfo
                 <Trash2 className="w-4 h-4 text-aura-text-dim" />
                 <span className="text-sm">Очистить историю</span>
               </button>
+              <button
+                onClick={() => setShowReport(true)}
+                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-yellow-500/10 text-yellow-500 transition-colors"
+              >
+                <Flag className="w-4 h-4" />
+                <span className="text-sm font-medium">Пожаловаться</span>
+              </button>
               <button className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-aura-dnd/10 text-aura-dnd transition-colors">
                 <LogOut className="w-4 h-4" />
                 <span className="text-sm font-medium">Покинуть {chat.type === 'group' ? 'группу' : 'канал'}</span>
@@ -287,6 +308,22 @@ export function ChatInfoPanel({ chat, currentUserId, isOpen, onClose }: ChatInfo
         <div
           className="fixed inset-0 bg-black/50 z-40 sm:hidden"
           onClick={onClose}
+        />
+      )}
+
+      {/* Group/Channel Settings Modal */}
+      {showGroupSettings && isGroup && (
+        <GroupSettings
+          chat={chat}
+          onClose={() => setShowGroupSettings(false)}
+        />
+      )}
+
+      {/* Report Modal */}
+      {showReport && (
+        <ReportModal
+          targetName={chat.name ?? undefined}
+          onClose={() => setShowReport(false)}
         />
       )}
     </>
