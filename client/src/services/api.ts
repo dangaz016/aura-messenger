@@ -313,6 +313,44 @@ class ApiService {
     this.setToken(data.token);
     return data;
   }
+
+  // ===== TELEGRAM AUTH =====
+  async telegramStatus() {
+    const { data } = await this.client.get<{ available: boolean; botToken: string | null }>('/auth/telegram/status');
+    return data;
+  }
+
+  async telegramSignIn(tgData: Record<string, string | number>) {
+    const { data } = await this.client.post<{ token: string; user: User }>('/auth/telegram', tgData);
+    this.setToken(data.token);
+    return data;
+  }
+
+  async telegramLink(tgData: Record<string, string | number>) {
+    const { data } = await this.client.post<{ user: User }>('/auth/telegram/link', tgData);
+    return data;
+  }
+
+  // ===== AURA PRIME =====
+  async primeStatus() {
+    const { data } = await this.client.get<{ user: User }>('/prime/status');
+    return data.user;
+  }
+
+  async primeUpdateSettings(settings: { theme?: string; badge?: string; animatedAvatar?: boolean }) {
+    const { data } = await this.client.patch<{ user: User }>('/prime/settings', settings);
+    return data.user;
+  }
+
+  async primeGrant(userId: string, durationDays?: number) {
+    const { data } = await this.client.post<{ user: User }>('/prime/grant', { userId, durationDays });
+    return data.user;
+  }
+
+  async primeRevoke(userId: string) {
+    const { data } = await this.client.post<{ user: User }>('/prime/revoke', { userId });
+    return data.user;
+  }
 }
 
 export const api = new ApiService();

@@ -43,12 +43,14 @@ router.get('/users', (req, res) => {
   const search = (req.query.search as string) || '';
   const rows = db.prepare(`
     SELECT id, username, display_name, avatar_color, is_admin, is_banned, is_frozen,
-           ban_reason, freeze_reason, freeze_until, created_at, last_seen, email
+           ban_reason, freeze_reason, freeze_until, created_at, last_seen, email,
+           is_prime, prime_expires_at
     FROM users
     WHERE username LIKE ? OR display_name LIKE ?
     ORDER BY created_at DESC
     LIMIT ? OFFSET ?
   `).all(`%${search}%`, `%${search}%`, limit, offset) as unknown as UserRow[];
+  const now = Math.floor(Date.now() / 1000);
   res.json(rows.map(r => ({
     id: r.id,
     username: r.username,
@@ -57,6 +59,7 @@ router.get('/users', (req, res) => {
     isAdmin: r.is_admin === 1,
     isBanned: r.is_banned === 1,
     isFrozen: r.is_frozen === 1,
+    isPrime: r.is_prime === 1 && (r.prime_expires_at === 0 || r.prime_expires_at > now),
     banReason: r.ban_reason,
     freezeReason: (r as any).freeze_reason,
     freezeUntil: (r as any).freeze_until,

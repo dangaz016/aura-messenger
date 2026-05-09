@@ -15,6 +15,7 @@ export interface UserRow {
   mood_text: string;
   aura_mode: AuraMode;
   google_id: string | null;
+  telegram_id: string | null;
   avatar_url: string | null;
   created_at: number;
   last_seen: number;
@@ -28,6 +29,11 @@ export interface UserRow {
   bio: string;
   phone: string | null;
   birthday: string | null;
+  is_prime: number;
+  prime_expires_at: number;
+  prime_theme: string;
+  prime_badge: string;
+  prime_animated_avatar: number;
 }
 
 export interface StoryRow {
@@ -61,6 +67,12 @@ export interface PublicUser {
   banReason: string | null;
   freezeReason: string | null;
   freezeUntil: number;
+  isPrime: boolean;
+  primeExpiresAt: number;
+  primeTheme: string;
+  primeBadge: string;
+  primeAnimatedAvatar: boolean;
+  hasTelegram: boolean;
 }
 
 export interface ChatRow {
@@ -109,6 +121,8 @@ declare global {
 }
 
 export function rowToPublicUser(row: UserRow): PublicUser {
+  const now = Math.floor(Date.now() / 1000);
+  const primeActive = row.is_prime === 1 && (row.prime_expires_at === 0 || row.prime_expires_at > now);
   return {
     id: row.id,
     username: row.username,
@@ -129,5 +143,11 @@ export function rowToPublicUser(row: UserRow): PublicUser {
     banReason: row.ban_reason ?? null,
     freezeReason: row.freeze_reason ?? null,
     freezeUntil: row.freeze_until ?? 0,
+    isPrime: primeActive,
+    primeExpiresAt: row.prime_expires_at ?? 0,
+    primeTheme: row.prime_theme || 'default',
+    primeBadge: row.prime_badge || 'crown',
+    primeAnimatedAvatar: row.prime_animated_avatar === 1,
+    hasTelegram: !!row.telegram_id,
   };
 }

@@ -33,27 +33,46 @@ const storage = multer.diskStorage({
   },
 });
 
+const FILE_FILTER: multer.Options['fileFilter'] = (_req, file, cb) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (BLOCKED_EXTENSIONS.has(ext)) {
+    return cb(new Error(`File type '${ext}' is not allowed`));
+  }
+  if (file.originalname.includes('..') || file.originalname.includes('/') || file.originalname.includes('\\')) {
+    return cb(new Error('Invalid filename'));
+  }
+  cb(null, true);
+};
+
+// Standard upload: 50 MB
 const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max
-  fileFilter: (_req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (BLOCKED_EXTENSIONS.has(ext)) {
-      return cb(new Error(`File type '${ext}' is not allowed`));
-    }
-    // Block if original name contains path traversal
-    if (file.originalname.includes('..') || file.originalname.includes('/') || file.originalname.includes('\\')) {
-      return cb(new Error('Invalid filename'));
-    }
-    cb(null, true);
-  },
+  limits: { fileSize: 50 * 1024 * 1024 },
+  fileFilter: FILE_FILTER,
 });
 
-// Multer error handler
+// Prime upload: 4 GB
+const uploadPrime = multer({
+  storage,
+  limits: { fileSize: 4 * 1024 * 1024 * 1024 },
+  fileFilter: FILE_FILTER,
+});
+
+// Multer error handler — picks the right instance based on is_prime
 function handleUpload(req: express.Request, res: express.Response, next: express.NextFunction) {
-  upload.single('file')(req, res, (err) => {
+  const db = getDb();
+  const userRow = db.prepare('SELECT is_prime, prime_expires_at FROM users WHERE id = ?').get(req.user!.userId) as
+    | { is_prime: number; prime_expires_at: number }
+    | undefined;
+  const now = Math.floor(Date.now() / 1000);
+  const isPrime = userRow?.is_prime === 1 && (userRow.prime_expires_at === 0 || userRow.prime_expires_at > now);
+
+  const middleware = isPrime ? uploadPrime.single('file') : upload.single('file');
+  const maxMB = isPrime ? '4 GB' : '50 MB';
+
+  middleware(req, res, (err) => {
     if (err instanceof multer.MulterError) {
-      if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'File too large (max 50 MB)' });
+      if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: `File too large (max ${maxMB})` });
       return res.status(400).json({ error: err.message });
     }
     if (err) return res.status(400).json({ error: err.message || 'Upload error' });

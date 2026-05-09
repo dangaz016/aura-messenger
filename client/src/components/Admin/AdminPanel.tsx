@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Shield, Users, MessageCircle, BarChart3, Ban, Snowflake, Check, Search, AlertTriangle, Trash2, Clock } from 'lucide-react';
+import { X, Shield, Users, MessageCircle, BarChart3, Ban, Snowflake, Check, Search, AlertTriangle, Trash2, Clock, Crown } from 'lucide-react';
 import { api } from '../../services/api';
 import { getInitials } from '../../utils/formatters';
 
@@ -11,6 +11,7 @@ interface AdminUser {
   isAdmin: boolean;
   isBanned: boolean;
   isFrozen: boolean;
+  isPrime?: boolean;
   banReason: string | null;
   freezeReason: string | null;
   freezeUntil: number;
@@ -150,6 +151,30 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
     } catch { showMsg('Error'); }
   }
 
+  async function handleGrantPrime(userId: string) {
+    const input = prompt('Days of Prime (leave empty for permanent):');
+    if (input === null) return; // cancelled
+    const days = input.trim() ? parseInt(input.trim()) : undefined;
+    if (days !== undefined && (isNaN(days) || days <= 0)) {
+      alert('Invalid number of days');
+      return;
+    }
+    try {
+      await api.primeGrant(userId, days);
+      showMsg(days ? `Prime granted for ${days} days` : 'Prime granted (permanent)');
+      loadUsers();
+    } catch { showMsg('Error granting Prime'); }
+  }
+
+  async function handleRevokePrime(userId: string) {
+    if (!confirm('Revoke Aura Prime from this user?')) return;
+    try {
+      await api.primeRevoke(userId);
+      showMsg('Prime revoked');
+      loadUsers();
+    } catch { showMsg('Error revoking Prime'); }
+  }
+
   return (
     <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
       <div className="bg-aura-surface border border-aura-border rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col animate-scale-in">
@@ -243,6 +268,7 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
                           {u.isAdmin && <span className="text-xs px-1.5 py-0.5 rounded bg-aura-primary/20 text-aura-primary-light">Admin</span>}
                           {u.isBanned && <span className="text-xs px-1.5 py-0.5 rounded bg-aura-dnd/20 text-aura-dnd">Banned</span>}
                           {u.isFrozen && <span className="text-xs px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-400">Frozen</span>}
+                          {u.isPrime && <span className="text-xs px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-300">👑 Prime</span>}
                         </div>
                         <div className="text-xs text-aura-text-muted">@{u.username}</div>
                         {u.banReason && <div className="text-xs text-aura-dnd mt-0.5">Reason: {u.banReason}</div>}
@@ -274,6 +300,17 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
                           <button onClick={() => handleMakeAdmin(u.id)}
                             className="p-1.5 rounded-lg hover:bg-aura-primary/10 text-aura-text-muted hover:text-aura-primary transition-colors" title="Make Admin">
                             <Shield className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {u.isPrime ? (
+                          <button onClick={() => handleRevokePrime(u.id)}
+                            className="p-1.5 rounded-lg bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 transition-colors" title="Revoke Prime">
+                            <Crown className="w-3.5 h-3.5" />
+                          </button>
+                        ) : (
+                          <button onClick={() => handleGrantPrime(u.id)}
+                            className="p-1.5 rounded-lg hover:bg-violet-500/10 text-aura-text-muted hover:text-violet-400 transition-colors" title="Grant Prime">
+                            <Crown className="w-3.5 h-3.5" />
                           </button>
                         )}
                       </div>

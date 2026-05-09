@@ -23,6 +23,14 @@ export interface User {
   banReason?: string | null;
   freezeReason?: string | null;
   freezeUntil?: number;
+  // Aura Prime
+  isPrime?: boolean;
+  primeExpiresAt?: number;
+  primeTheme?: string;
+  primeBadge?: string;
+  primeAnimatedAvatar?: boolean;
+  // Linked accounts
+  hasTelegram?: boolean;
 }
 
 export interface Story {

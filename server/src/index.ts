@@ -20,6 +20,7 @@ import filesRoutes from './routes/files';
 import storiesRoutes, { startStoryCleanup } from './routes/stories';
 import aiRoutes from './routes/ai';
 import adminRoutes, { reportRouter } from './routes/admin';
+import primeRoutes from './routes/prime';
 
 // ── Auto-create first admin from env vars ────────────────────────────────────
 async function initAdminIfNeeded() {
@@ -113,6 +114,7 @@ app.use('/api/stories', storiesRoutes);
 app.use('/api/ai', aiLimiter, aiRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/report', reportRouter);
+app.use('/api/prime', primeRoutes);
 
 // Serve client SPA in production. The client is built into ../client/dist
 // (from compiled server/dist, that's ../../client/dist).

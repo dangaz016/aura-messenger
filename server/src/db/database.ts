@@ -203,6 +203,15 @@ function initializeSchema(db: Database.Database) {
   try { db.exec("ALTER TABLE messages ADD COLUMN forwarded_from_name TEXT"); } catch { /* already exists */ }
   // Migrations: chats table (pinned message)
   try { db.exec("ALTER TABLE chats ADD COLUMN pinned_message_id TEXT REFERENCES messages(id)"); } catch { /* already exists */ }
+  // Migrations: Telegram auth
+  try { db.exec("ALTER TABLE users ADD COLUMN telegram_id TEXT"); } catch { /* already exists */ }
+  try { db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id) WHERE telegram_id IS NOT NULL"); } catch { /* ignore */ }
+  // Migrations: Aura Prime
+  try { db.exec("ALTER TABLE users ADD COLUMN is_prime INTEGER DEFAULT 0"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE users ADD COLUMN prime_expires_at INTEGER DEFAULT 0"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE users ADD COLUMN prime_theme TEXT DEFAULT 'default'"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE users ADD COLUMN prime_badge TEXT DEFAULT 'crown'"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE users ADD COLUMN prime_animated_avatar INTEGER DEFAULT 0"); } catch { /* already exists */ }
 }
 
 export function closeDb() {

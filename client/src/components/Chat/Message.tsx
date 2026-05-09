@@ -9,6 +9,7 @@ import { formatMessageTime, formatEchoTime } from '../../utils/formatters';
 import { ContextMenu } from '../Common/ContextMenu';
 
 const REACTIONS = ['❤️', '👍', '😂', '🔥', '😮', '😢'];
+const PRIME_REACTIONS = ['🌟', '💫', '💎', '👑', '🌈', '✨', '🎭', '🦋', '🌙'];
 
 // ── Voice message player ───────────────────────────────────────────────────
 
@@ -414,16 +415,35 @@ export function Message({ message, isOwn, isFirstInGroup, showSender, isExplodin
           )}
 
           {showReactions && (
-            <div className={`absolute -top-10 ${isOwn ? 'right-0' : 'left-0'} bg-aura-elevated border border-aura-border rounded-full px-2 py-1 flex gap-1 shadow-lg z-10`}>
-              {REACTIONS.map(emoji => (
-                <button
-                  key={emoji}
-                  onClick={() => { toggleReaction(message.id, emoji); setShowReactions(false); }}
-                  className="hover:scale-125 transition-transform p-1"
-                >
-                  {emoji}
-                </button>
-              ))}
+            <div className={`absolute ${user?.isPrime ? '-top-[4.5rem]' : '-top-10'} ${isOwn ? 'right-0' : 'left-0'} bg-aura-elevated border border-aura-border rounded-2xl px-2 py-1.5 flex flex-col gap-1 shadow-lg z-10`}>
+              <div className="flex gap-1">
+                {REACTIONS.map(emoji => (
+                  <button
+                    key={emoji}
+                    onClick={() => { toggleReaction(message.id, emoji); setShowReactions(false); }}
+                    className="hover:scale-125 transition-transform p-1"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+              {user?.isPrime && (
+                <>
+                  <div className="border-t border-aura-border/50 mx-1" />
+                  <div className="flex gap-1 items-center">
+                    <span className="text-[9px] text-violet-400 font-semibold px-1">Prime</span>
+                    {PRIME_REACTIONS.map(emoji => (
+                      <button
+                        key={emoji}
+                        onClick={() => { toggleReaction(message.id, emoji); setShowReactions(false); }}
+                        className="hover:scale-125 transition-transform p-1"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

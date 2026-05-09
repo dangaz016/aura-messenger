@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, LogOut, Palette, ShieldCheck, Eye, EyeOff, BellOff, Check, Moon, Sparkles, Waves, Bell, Edit3, Camera, Loader2, Cake } from 'lucide-react';
+import { X, LogOut, Palette, ShieldCheck, Eye, EyeOff, BellOff, Check, Moon, Sparkles, Waves, Bell, Edit3, Camera, Loader2, Cake, Crown } from 'lucide-react';
+import { AuraPrimePanel } from './AuraPrimePanel';
 import { useAuth } from '../../contexts/AuthContext';
 import { useChat } from '../../contexts/ChatContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -468,6 +469,11 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 </div>
               )}
             </div>
+          </Section>
+
+          {/* Aura Prime */}
+          <Section title="Aura Prime" icon={<Crown className="w-4 h-4 text-yellow-400" />}>
+            <AuraPrimePanel />
           </Section>
 
           {/* Actions */}

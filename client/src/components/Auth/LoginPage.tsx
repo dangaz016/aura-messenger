@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useT } from '../../contexts/LanguageContext';
 import { TranslationKey } from '../../i18n/translations';
 import { GoogleSignIn } from './GoogleSignIn';
+import { TelegramSignIn, TelegramIcon } from './TelegramSignIn';
 import { api } from '../../services/api';
 import { BehaviorTracker, runPoWWithProgress } from '../../utils/botDetection';
 
@@ -145,7 +146,7 @@ function PowStatus({ state, attempts }: PowStatusProps) {
 
 // ── Main Login Page ───────────────────────────────────────────────────────────
 export function LoginPage() {
-  const { login, register } = useAuth();
+  const { login, register, loginWithToken } = useAuth();
   const { t } = useT();
   const [isRegister, setIsRegister] = useState(false);
   const [username, setUsername] = useState('');
@@ -153,6 +154,23 @@ export function LoginPage() {
   const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Telegram
+  const [tgBotUsername, setTgBotUsername] = useState<string | null>(null);
+  const [showTgWidget, setShowTgWidget] = useState(false);
+
+  useEffect(() => {
+    api.telegramStatus().then(s => {
+      if (s.available && s.botToken) {
+        // Extract bot username from env or use placeholder — server only confirms it's configured
+        // We need to store TELEGRAM_BOT_USERNAME in env for the widget
+        const botUser = (window as unknown as Record<string, unknown>).__TELEGRAM_BOT_USERNAME__ as string
+          || import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string
+          || null;
+        setTgBotUsername(botUser);
+      }
+    }).catch(() => {});
+  }, []);
 
   // Math CAPTCHA
   const [captchaId, setCaptchaId] = useState('');
@@ -451,6 +469,32 @@ export function LoginPage() {
           </form>
 
           <GoogleSignIn />
+
+          {/* Telegram Sign In */}
+          {tgBotUsername && (
+            <div className="mt-3">
+              {showTgWidget ? (
+                <TelegramSignIn
+                  botUsername={tgBotUsername}
+                  onSuccess={async ({ token, user }) => {
+                    if (token) {
+                      await loginWithToken(token, user);
+                    }
+                  }}
+                  onError={(err) => setError(err)}
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowTgWidget(true)}
+                  className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-[#2AABEE]/40 bg-[#2AABEE]/10 hover:bg-[#2AABEE]/20 transition-colors text-sm font-medium text-[#2AABEE]"
+                >
+                  <TelegramIcon className="w-5 h-5 flex-shrink-0" />
+                  Войти через Telegram
+                </button>
+              )}
+            </div>
+          )}
 
           <div className="mt-6 text-center text-sm">
             <span className="text-aura-text-dim">

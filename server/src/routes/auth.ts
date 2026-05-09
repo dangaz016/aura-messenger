@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
+import { createHmac } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '../db/database';
 import { signToken, authenticateToken } from '../middleware/auth';
@@ -13,6 +14,7 @@ import {
 import { UserRow, rowToPublicUser } from '../types';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
 const router = Router();
 
@@ -276,6 +278,163 @@ router.post('/google', async (req, res) => {
   } catch (err) {
     console.error('Google auth error:', err);
     res.status(500).json({ error: 'Google sign-in failed' });
+  }
+});
+
+// ── Telegram Login Widget ─────────────────────────────────────────────────────
+// GET /api/auth/telegram/status
+router.get('/telegram/status', (_req, res) => {
+  res.json({ available: !!TELEGRAM_BOT_TOKEN, botToken: TELEGRAM_BOT_TOKEN ? 'configured' : null });
+});
+
+// POST /api/auth/telegram — verify Telegram Login Widget data
+router.post('/telegram', authLimiter, async (req, res) => {
+  try {
+    if (!TELEGRAM_BOT_TOKEN) {
+      return res.status(503).json({ error: 'Telegram sign-in not configured. Set TELEGRAM_BOT_TOKEN in .env' });
+    }
+
+    // Telegram Login Widget sends: id, first_name, last_name, username, photo_url, auth_date, hash
+    const { id, first_name, last_name, username, photo_url, auth_date, hash } = req.body as {
+      id: string | number;
+      first_name?: string;
+      last_name?: string;
+      username?: string;
+      photo_url?: string;
+      auth_date: string | number;
+      hash: string;
+    };
+
+    if (!id || !auth_date || !hash) {
+      return res.status(400).json({ error: 'Missing Telegram auth data' });
+    }
+
+    // Verify auth_date is fresh (within 1 day)
+    const authDateNum = typeof auth_date === 'string' ? parseInt(auth_date) : auth_date;
+    if (Date.now() / 1000 - authDateNum > 86400) {
+      return res.status(401).json({ error: 'Telegram auth data expired' });
+    }
+
+    // Build data-check-string: sorted key=value pairs (excluding hash)
+    const data: Record<string, string> = {
+      id: String(id),
+      auth_date: String(auth_date),
+    };
+    if (first_name) data.first_name = first_name;
+    if (last_name) data.last_name = last_name;
+    if (username) data.username = username;
+    if (photo_url) data.photo_url = photo_url;
+
+    const checkString = Object.keys(data)
+      .sort()
+      .map(k => `${k}=${data[k]}`)
+      .join('\n');
+
+    // Secret key = SHA256(bot_token), NOT HMAC
+    const { createHash } = await import('crypto');
+    const secretKey = createHash('sha256').update(TELEGRAM_BOT_TOKEN).digest();
+    const expectedHash = createHmac('sha256', secretKey).update(checkString).digest('hex');
+
+    if (expectedHash !== hash) {
+      return res.status(401).json({ error: 'Invalid Telegram signature' });
+    }
+
+    const db = getDb();
+    const now = Math.floor(Date.now() / 1000);
+    const telegramId = String(id);
+
+    // Find existing user by telegram_id
+    let user = db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(telegramId) as UserRow | undefined;
+
+    if (user) {
+      // Update last_seen and photo if changed
+      db.prepare('UPDATE users SET last_seen = ?, avatar_url = COALESCE(?, avatar_url) WHERE id = ?')
+        .run(now, photo_url ?? null, user.id);
+    } else {
+      // Create new user from Telegram profile
+      const displayName = [first_name, last_name].filter(Boolean).join(' ') || `User${telegramId.slice(-4)}`;
+      // Generate unique username from telegram username or id
+      let baseUsername = username
+        ? username.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 18)
+        : `tg${telegramId.slice(-8)}`;
+      // Ensure username is at least 3 chars
+      if (baseUsername.length < 3) baseUsername = `tg_${baseUsername}`;
+
+      let finalUsername = baseUsername;
+      let suffix = 1;
+      while (db.prepare('SELECT id FROM users WHERE username = ?').get(finalUsername)) {
+        finalUsername = `${baseUsername}${suffix++}`;
+      }
+
+      const AVATAR_COLORS = ['#7C3AED', '#A78BFA', '#EC4899', '#F472B6', '#3B82F6', '#06B6D4', '#10B981'];
+      const avatarColor = AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
+      const userId = uuidv4();
+      const dummyHash = `$2a$10$telegram_user_no_password_${userId.slice(0, 12)}`;
+
+      db.prepare(`
+        INSERT INTO users (id, username, email, password_hash, display_name, avatar_color, avatar_url, telegram_id, created_at, last_seen)
+        VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?)
+      `).run(userId, finalUsername, dummyHash, displayName, avatarColor, photo_url ?? null, telegramId, now, now);
+
+      user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as UserRow;
+    }
+
+    if (user.is_banned) {
+      return res.status(403).json({ error: 'Account banned', reason: user.ban_reason });
+    }
+
+    const token = signToken({ userId: user.id, username: user.username });
+    res.json({ token, user: rowToPublicUser(user) });
+  } catch (err) {
+    console.error('Telegram auth error:', err);
+    res.status(500).json({ error: 'Telegram sign-in failed' });
+  }
+});
+
+// POST /api/auth/telegram/link — link Telegram to existing account (authenticated)
+router.post('/telegram/link', authenticateToken, authLimiter, async (req, res) => {
+  try {
+    if (!TELEGRAM_BOT_TOKEN) {
+      return res.status(503).json({ error: 'Telegram not configured' });
+    }
+
+    const { id, first_name, last_name, username, photo_url, auth_date, hash } = req.body as {
+      id: string | number; first_name?: string; last_name?: string;
+      username?: string; photo_url?: string; auth_date: string | number; hash: string;
+    };
+
+    if (!id || !auth_date || !hash) return res.status(400).json({ error: 'Missing Telegram auth data' });
+
+    const authDateNum = typeof auth_date === 'string' ? parseInt(auth_date) : auth_date;
+    if (Date.now() / 1000 - authDateNum > 86400) return res.status(401).json({ error: 'Auth data expired' });
+
+    const data: Record<string, string> = { id: String(id), auth_date: String(auth_date) };
+    if (first_name) data.first_name = first_name;
+    if (last_name) data.last_name = last_name;
+    if (username) data.username = username;
+    if (photo_url) data.photo_url = photo_url;
+
+    const checkString = Object.keys(data).sort().map(k => `${k}=${data[k]}`).join('\n');
+    const { createHash } = await import('crypto');
+    const secretKey = createHash('sha256').update(TELEGRAM_BOT_TOKEN).digest();
+    const expectedHash = createHmac('sha256', secretKey).update(checkString).digest('hex');
+    if (expectedHash !== hash) return res.status(401).json({ error: 'Invalid signature' });
+
+    const db = getDb();
+    const telegramId = String(id);
+
+    // Check not already linked to another account
+    const existing = db.prepare('SELECT id FROM users WHERE telegram_id = ?').get(telegramId) as { id: string } | undefined;
+    if (existing && existing.id !== req.user!.userId) {
+      return res.status(409).json({ error: 'This Telegram account is linked to another user' });
+    }
+
+    db.prepare('UPDATE users SET telegram_id = ? WHERE id = ?').run(telegramId, req.user!.userId);
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user!.userId) as UserRow;
+    res.json({ user: rowToPublicUser(user) });
+  } catch (err) {
+    console.error('Telegram link error:', err);
+    res.status(500).json({ error: 'Failed to link Telegram' });
   }
 });
 
