@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import { Shield, Sparkles, Zap, Lock } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Shield, Sparkles, Zap, Lock, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useT } from '../../contexts/LanguageContext';
 import { TranslationKey } from '../../i18n/translations';
 import { GoogleSignIn } from './GoogleSignIn';
+import { api } from '../../services/api';
 
 // Map server error messages to translation keys
 function mapServerError(message: string): TranslationKey | null {
@@ -26,6 +27,33 @@ export function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // CAPTCHA state (only used during registration)
+  const [captchaId, setCaptchaId] = useState('');
+  const [captchaQuestion, setCaptchaQuestion] = useState('');
+  const [captchaAnswer, setCaptchaAnswer] = useState('');
+  const [captchaLoading, setCaptchaLoading] = useState(false);
+
+  async function fetchCaptcha() {
+    setCaptchaLoading(true);
+    setCaptchaAnswer('');
+    try {
+      const { id, question } = await api.getCaptcha();
+      setCaptchaId(id);
+      setCaptchaQuestion(question);
+    } catch {
+      setCaptchaQuestion('');
+    } finally {
+      setCaptchaLoading(false);
+    }
+  }
+
+  // Fetch captcha when switching to register mode
+  useEffect(() => {
+    if (isRegister) {
+      fetchCaptcha();
+    }
+  }, [isRegister]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
@@ -34,7 +62,7 @@ export function LoginPage() {
       // Strip leading @ if user added it (we show @ as a prefix decoration)
       const cleanUsername = username.replace(/^@+/, '').trim();
       if (isRegister) {
-        await register(cleanUsername, password, displayName || undefined);
+        await register(cleanUsername, password, displayName || undefined, captchaId || undefined, captchaAnswer || undefined);
       } else {
         await login(cleanUsername, password);
       }
@@ -44,6 +72,8 @@ export function LoginPage() {
         : null;
       const mapped = mapServerError(errorMsg || '');
       setError(mapped ? t(mapped) : (errorMsg || t('login.error_generic')));
+      // Refresh captcha on registration failure
+      if (isRegister) fetchCaptcha();
     } finally {
       setLoading(false);
     }
@@ -126,6 +156,39 @@ export function LoginPage() {
                 minLength={6}
               />
             </div>
+
+            {/* CAPTCHA — shown only on registration */}
+            {isRegister && (
+              <div>
+                <label className="block text-xs font-medium text-aura-text-dim mb-1.5 uppercase tracking-wide">
+                  Verification
+                </label>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex-1 px-3 py-2 rounded-lg bg-aura-surface border border-aura-border text-sm font-mono tracking-widest select-none">
+                    {captchaLoading ? '...' : captchaQuestion}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={fetchCaptcha}
+                    disabled={captchaLoading}
+                    className="p-2 rounded-lg bg-aura-surface border border-aura-border text-aura-text-dim hover:text-aura-primary-light transition-colors disabled:opacity-40"
+                    title="New question"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${captchaLoading ? 'animate-spin' : ''}`} />
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={captchaAnswer}
+                  onChange={(e) => setCaptchaAnswer(e.target.value)}
+                  className="input-aura w-full"
+                  placeholder="Your answer"
+                  required
+                  autoComplete="off"
+                />
+              </div>
+            )}
 
             {error && (
               <div className="px-3 py-2 rounded-lg bg-aura-dnd/10 border border-aura-dnd/30 text-aura-dnd text-sm">

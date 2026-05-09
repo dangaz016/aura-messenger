@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import http from 'http';
 import path from 'path';
 import fs from 'fs';
@@ -7,6 +8,7 @@ import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import { Server as SocketIOServer } from 'socket.io';
 import { getDb } from './db/database';
+import { globalLimiter, helmetOptions, aiLimiter } from './middleware/security';
 import { setupSocketHandlers } from './socket/handlers';
 import authRoutes from './routes/auth';
 import usersRoutes from './routes/users';
@@ -87,8 +89,11 @@ const io = new SocketIOServer(server, {
   },
 });
 
+app.set('trust proxy', 1); // trust first proxy (needed for correct IP behind Render/nginx)
+app.use(helmet(helmetOptions));
 app.use(cors({ origin: corsOrigin }));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '2mb' })); // 2MB max JSON body (was 10MB — no need for bigger)
+app.use(globalLimiter);
 
 getDb();
 
@@ -102,7 +107,7 @@ app.use('/api/users', usersRoutes);
 app.use('/api/chats', chatsRoutes);
 app.use('/api/files', filesRoutes);
 app.use('/api/stories', storiesRoutes);
-app.use('/api/ai', aiRoutes);
+app.use('/api/ai', aiLimiter, aiRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/report', reportRouter);
 

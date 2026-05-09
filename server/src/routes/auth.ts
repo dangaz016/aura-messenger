@@ -3,11 +3,22 @@ import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '../db/database';
 import { signToken, authenticateToken } from '../middleware/auth';
+import {
+  authLimiter, registerLimiter,
+  generateCaptcha, validateCaptcha,
+  checkLockout, recordFailedAttempt, clearLockout,
+} from '../middleware/security';
 import { UserRow, rowToPublicUser } from '../types';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 
 const router = Router();
+
+// GET /api/auth/captcha — get a math challenge
+router.get('/captcha', (req, res) => {
+  const captcha = generateCaptcha();
+  res.json(captcha);
+});
 
 const AVATAR_COLORS = [
   '#7C3AED', '#A78BFA', '#EC4899', '#F472B6',
@@ -19,9 +30,9 @@ function pickColor() {
   return AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
 }
 
-router.post('/register', async (req, res) => {
+router.post('/register', registerLimiter, async (req, res) => {
   try {
-    const { username, password, displayName } = req.body;
+    const { username, password, displayName, captchaId, captchaAnswer } = req.body;
 
     if (!username || !password) {
       return res.status(400).json({ error: 'Username and password are required' });
@@ -33,6 +44,18 @@ router.post('/register', async (req, res) => {
 
     if (password.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    if (displayName && displayName.length > 50) {
+      return res.status(400).json({ error: 'Display name too long (max 50)' });
+    }
+
+    // CAPTCHA validation
+    if (!captchaId || captchaAnswer === undefined || captchaAnswer === '') {
+      return res.status(400).json({ error: 'CAPTCHA required' });
+    }
+    if (!validateCaptcha(captchaId, Number(captchaAnswer))) {
+      return res.status(400).json({ error: 'Incorrect CAPTCHA. Please try again.' });
     }
 
     const db = getDb();
@@ -60,25 +83,41 @@ router.post('/register', async (req, res) => {
   }
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    if (!username || !password) {
+    if (!username || !password || typeof username !== 'string' || typeof password !== 'string') {
       return res.status(400).json({ error: 'Username and password are required' });
+    }
+
+    // Account lockout check (per IP + username combo)
+    const lockKey = `login:${req.ip}:${String(username).toLowerCase()}`;
+    const lockStatus = checkLockout(lockKey);
+    if (lockStatus.locked) {
+      return res.status(429).json({
+        error: `Too many failed attempts. Try again in ${lockStatus.remainingMinutes} minute${lockStatus.remainingMinutes > 1 ? 's' : ''}.`,
+      });
     }
 
     const db = getDb();
     const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username) as unknown as UserRow | undefined;
 
     if (!user) {
+      recordFailedAttempt(lockKey);
+      // Same error as wrong password — don't reveal username existence
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      const remaining = 5 - (recordFailedAttempt(lockKey) || 0);
+      const hint = remaining > 0 && remaining <= 3 ? ` (${remaining} attempt${remaining !== 1 ? 's' : ''} left)` : '';
+      return res.status(401).json({ error: `Invalid credentials${hint}` });
     }
+
+    // Successful login — clear lockout
+    clearLockout(lockKey);
 
     const now = Math.floor(Date.now() / 1000);
     db.prepare('UPDATE users SET last_seen = ? WHERE id = ?').run(now, user.id);

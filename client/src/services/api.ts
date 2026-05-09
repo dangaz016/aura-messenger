@@ -38,9 +38,14 @@ class ApiService {
     return `${API_BASE}/files/${fileId}`;
   }
 
-  async register(username: string, password: string, displayName?: string) {
+  async getCaptcha(): Promise<{ id: string; question: string }> {
+    const { data } = await this.client.get('/auth/captcha');
+    return data;
+  }
+
+  async register(username: string, password: string, displayName?: string, captchaId?: string, captchaAnswer?: string) {
     const { data } = await this.client.post<{ token: string; user: User }>('/auth/register', {
-      username, password, displayName,
+      username, password, displayName, captchaId, captchaAnswer,
     });
     this.setToken(data.token);
     return data;

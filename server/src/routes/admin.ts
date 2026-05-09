@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
+import path from 'path';
+import fs from 'fs';
 import { getDb } from '../db/database';
 import { authenticateToken, requireAdmin } from '../middleware/auth';
 import { UserRow } from '../types';
@@ -123,6 +125,38 @@ router.delete('/messages/:id', (req, res) => {
   db.prepare('UPDATE messages SET is_deleted = 1, content = ? WHERE id = ?')
     .run('[Deleted by admin]', req.params.id);
   res.json({ success: true });
+});
+
+// GET /api/admin/backup — download the SQLite database file
+router.get('/backup', (req, res) => {
+  try {
+    const db = getDb();
+    // WAL checkpoint before backup
+    db.exec('PRAGMA wal_checkpoint(FULL)');
+
+    const dataDir = process.env.DATA_DIR || path.join(__dirname, '../../../data');
+    const dbPath = path.join(dataDir, 'aura.db');
+
+    if (!fs.existsSync(dbPath)) {
+      // Try alternate paths
+      const candidates = [
+        path.join(__dirname, '../../data/aura.db'),
+        '/tmp/aura-data/aura.db',
+      ];
+      const found = candidates.find(p => fs.existsSync(p));
+      if (!found) return res.status(404).json({ error: 'Database file not found' });
+      res.setHeader('Content-Disposition', `attachment; filename="aura-backup-${Date.now()}.db"`);
+      res.setHeader('Content-Type', 'application/octet-stream');
+      return fs.createReadStream(found).pipe(res);
+    }
+
+    res.setHeader('Content-Disposition', `attachment; filename="aura-backup-${Date.now()}.db"`);
+    res.setHeader('Content-Type', 'application/octet-stream');
+    fs.createReadStream(dbPath).pipe(res);
+  } catch (err) {
+    console.error('Backup error:', err);
+    res.status(500).json({ error: 'Backup failed' });
+  }
 });
 
 // POST /api/admin/report (from regular users)
