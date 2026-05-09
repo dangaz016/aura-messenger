@@ -6,7 +6,7 @@ import { TranslationKey } from '../../i18n/translations';
 import { GoogleSignIn } from './GoogleSignIn';
 import { TelegramSignIn, TelegramIcon } from './TelegramSignIn';
 import { api } from '../../services/api';
-import { BehaviorTracker, runPoWWithProgress } from '../../utils/botDetection';
+import { BehaviorTracker } from '../../utils/botDetection';
 
 // Map server error messages to translation keys
 function mapServerError(message: string): TranslationKey | null {
@@ -181,11 +181,6 @@ export function LoginPage() {
   // Drag-slider CAPTCHA
   const [sliderDone, setSliderDone] = useState(false);
 
-  // Proof-of-Work
-  const [powState, setPowState] = useState<'idle' | 'mining' | 'done' | 'error'>('idle');
-  const [powAttempts, setPowAttempts] = useState(0);
-  const powResult = useRef<{ id: string; nonce: string } | null>(null);
-
   // Behaviour tracking
   const behaviorRef = useRef<BehaviorTracker | null>(null);
   const formShownAt = useRef<number>(0);
@@ -204,34 +199,16 @@ export function LoginPage() {
     }
   }
 
-  async function startPoW() {
-    setPowState('mining');
-    setPowAttempts(0);
-    powResult.current = null;
-    try {
-      const { id, challenge, difficulty } = await api.getPowChallenge();
-      const nonce = await runPoWWithProgress(challenge, difficulty, (att) => {
-        setPowAttempts(att);
-      });
-      powResult.current = { id, nonce };
-      setPowState('done');
-    } catch {
-      setPowState('error');
-    }
-  }
 
   useEffect(() => {
     if (isRegister) {
       formShownAt.current = Date.now();
       behaviorRef.current = new BehaviorTracker();
       fetchCaptcha();
-      startPoW();
     } else {
       behaviorRef.current?.detach();
       behaviorRef.current = null;
       setSliderDone(false);
-      setPowState('idle');
-      powResult.current = null;
     }
     return () => {
       behaviorRef.current?.detach();
@@ -251,19 +228,12 @@ export function LoginPage() {
           setLoading(false);
           return;
         }
-        if (powState !== 'done' || !powResult.current) {
-          setError('Верификация ещё не завершена, подождите...');
-          setLoading(false);
-          return;
-        }
-
         const behavior = behaviorRef.current?.collect();
         const timeOnPage = Date.now() - formShownAt.current;
 
         await register(
           cleanUsername, password, displayName || undefined,
           captchaId || undefined, captchaAnswer || undefined,
-          powResult.current.id, powResult.current.nonce,
           behavior?.score, timeOnPage,
         );
       } else {
@@ -278,15 +248,13 @@ export function LoginPage() {
       if (isRegister) {
         fetchCaptcha();
         setSliderDone(false);
-        // Re-mine if PoW was used up
-        startPoW();
       }
     } finally {
       setLoading(false);
     }
   }
 
-  const allVerified = sliderDone && powState === 'done';
+  const allVerified = sliderDone;
 
   return (
     <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
@@ -392,10 +360,7 @@ export function LoginPage() {
                   <Shield className="w-3.5 h-3.5" /> Защита от ботов
                 </p>
 
-                {/* 1. PoW status */}
-                <PowStatus state={powState} attempts={powAttempts} />
-
-                {/* 2. Math CAPTCHA */}
+                {/* Math CAPTCHA */}
                 <div>
                   <label className="block text-xs font-medium text-aura-text-dim mb-1.5 uppercase tracking-wide">
                     Решите пример
@@ -426,13 +391,12 @@ export function LoginPage() {
                   />
                 </div>
 
-                {/* 3. Slider CAPTCHA */}
+                {/* Slider CAPTCHA */}
                 <SliderCaptcha onVerified={() => setSliderDone(true)} />
 
                 {/* Verification progress summary */}
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   {[
-                    { label: 'Вычисление', done: powState === 'done' },
                     { label: 'Пример', done: !!captchaAnswer && captchaAnswer.length > 0 },
                     { label: 'Слайдер', done: sliderDone },
                   ].map(item => (

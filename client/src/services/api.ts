@@ -54,15 +54,12 @@ class ApiService {
     displayName?: string,
     captchaId?: string,
     captchaAnswer?: string,
-    powId?: string,
-    powNonce?: string,
     behaviorScore?: number,
     timeOnPage?: number,
   ) {
     const { data } = await this.client.post<{ token: string; user: User }>('/auth/register', {
       username, password, displayName,
       captchaId, captchaAnswer,
-      powId, powNonce,
       honeypot: '',   // must always be empty from legitimate client
       behaviorScore,
       timeOnPage,

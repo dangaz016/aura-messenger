@@ -5,9 +5,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '../db/database';
 import { signToken, authenticateToken } from '../middleware/auth';
 import {
-  authLimiter, registerLimiter, powLimiter,
+  authLimiter, registerLimiter,
   generateCaptcha, validateCaptcha,
-  generatePowChallenge, validatePow,
   checkLockout, recordFailedAttempt, clearLockout,
   addSuspicion, suspicionGuard, registrationDelay,
 } from '../middleware/security';
@@ -25,12 +24,6 @@ router.get('/captcha', (req, res) => {
   res.json(captcha);
 });
 
-// GET /api/auth/pow — get a proof-of-work challenge
-router.get('/pow', powLimiter, (req, res) => {
-  const ip = req.ip || '';
-  const pow = generatePowChallenge(ip);
-  res.json(pow);
-});
 
 const AVATAR_COLORS = [
   '#7C3AED', '#A78BFA', '#EC4899', '#F472B6',
@@ -48,14 +41,12 @@ router.post('/register', suspicionGuard, registerLimiter, registrationDelay, asy
     const {
       username, password, displayName,
       captchaId, captchaAnswer,
-      powId, powNonce,
       honeypot,        // must be empty — hidden field
       behaviorScore,   // client-side score 0-100 (higher = more human)
       timeOnPage,      // ms spent on form (too fast = bot)
     } = req.body as {
       username: string; password: string; displayName?: string;
       captchaId?: string; captchaAnswer?: string;
-      powId?: string; powNonce?: string;
       honeypot?: string;
       behaviorScore?: number;
       timeOnPage?: number;
@@ -93,15 +84,6 @@ router.post('/register', suspicionGuard, registerLimiter, registrationDelay, asy
 
     if (displayName && displayName.length > 50) {
       return res.status(400).json({ error: 'Display name too long (max 50)' });
-    }
-
-    // ── Proof-of-Work validation ──────────────────────────────────────────────
-    if (!powId || !powNonce) {
-      return res.status(400).json({ error: 'Proof-of-work required. Please wait for verification to complete.' });
-    }
-    if (!validatePow(powId, powNonce, ip)) {
-      addSuspicion(ip, 20);
-      return res.status(400).json({ error: 'Invalid proof-of-work. Please refresh and try again.' });
     }
 
     // ── CAPTCHA validation ────────────────────────────────────────────────────
