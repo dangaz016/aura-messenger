@@ -9,7 +9,7 @@ interface AuthContextValue {
   user: User | null;
   loading: boolean;
   login: (username: string, password: string) => Promise<void>;
-  register: (username: string, password: string, displayName?: string, captchaId?: string, captchaAnswer?: string) => Promise<void>;
+  register: (username: string, password: string, displayName?: string, captchaId?: string, captchaAnswer?: string, powId?: string, powNonce?: string, behaviorScore?: number, timeOnPage?: number) => Promise<void>;
   logout: () => void;
   updateUser: (user: User) => void;
   // ban/freeze state (updated in real time)
@@ -97,8 +97,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     socketService.connect(token);
   }
 
-  async function register(username: string, password: string, displayName?: string, captchaId?: string, captchaAnswer?: string) {
-    const { token, user: u } = await api.register(username, password, displayName, captchaId, captchaAnswer);
+  async function register(
+    username: string, password: string, displayName?: string,
+    captchaId?: string, captchaAnswer?: string,
+    powId?: string, powNonce?: string,
+    behaviorScore?: number, timeOnPage?: number,
+  ) {
+    const { token, user: u } = await api.register(
+      username, password, displayName,
+      captchaId, captchaAnswer,
+      powId, powNonce,
+      behaviorScore, timeOnPage,
+    );
     setUser(u);
     await ensurePublicKey(u);
     socketService.connect(token);

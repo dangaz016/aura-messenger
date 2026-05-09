@@ -4,9 +4,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '../db/database';
 import { signToken, authenticateToken } from '../middleware/auth';
 import {
-  authLimiter, registerLimiter,
+  authLimiter, registerLimiter, powLimiter,
   generateCaptcha, validateCaptcha,
+  generatePowChallenge, validatePow,
   checkLockout, recordFailedAttempt, clearLockout,
+  addSuspicion, suspicionGuard, registrationDelay,
 } from '../middleware/security';
 import { UserRow, rowToPublicUser } from '../types';
 
@@ -16,8 +18,16 @@ const router = Router();
 
 // GET /api/auth/captcha — get a math challenge
 router.get('/captcha', (req, res) => {
-  const captcha = generateCaptcha();
+  const ip = req.ip || '';
+  const captcha = generateCaptcha(ip);
   res.json(captcha);
+});
+
+// GET /api/auth/pow — get a proof-of-work challenge
+router.get('/pow', powLimiter, (req, res) => {
+  const ip = req.ip || '';
+  const pow = generatePowChallenge(ip);
+  res.json(pow);
 });
 
 const AVATAR_COLORS = [
@@ -30,9 +40,42 @@ function pickColor() {
   return AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
 }
 
-router.post('/register', registerLimiter, async (req, res) => {
+router.post('/register', suspicionGuard, registerLimiter, registrationDelay, async (req, res) => {
+  const ip = req.ip || '';
   try {
-    const { username, password, displayName, captchaId, captchaAnswer } = req.body;
+    const {
+      username, password, displayName,
+      captchaId, captchaAnswer,
+      powId, powNonce,
+      honeypot,        // must be empty — hidden field
+      behaviorScore,   // client-side score 0-100 (higher = more human)
+      timeOnPage,      // ms spent on form (too fast = bot)
+    } = req.body as {
+      username: string; password: string; displayName?: string;
+      captchaId?: string; captchaAnswer?: string;
+      powId?: string; powNonce?: string;
+      honeypot?: string;
+      behaviorScore?: number;
+      timeOnPage?: number;
+    };
+
+    // ── Honeypot check ────────────────────────────────────────────────────────
+    if (honeypot && honeypot.trim() !== '') {
+      addSuspicion(ip, 100); // instant ban — bots fill hidden fields
+      return res.status(400).json({ error: 'Verification failed.' });
+    }
+
+    // ── Time-on-page check (<3s = bot) ────────────────────────────────────────
+    if (timeOnPage !== undefined && timeOnPage < 3000) {
+      addSuspicion(ip, 40);
+      return res.status(400).json({ error: 'Please fill the form more carefully.' });
+    }
+
+    // ── Behavioural score check ───────────────────────────────────────────────
+    if (behaviorScore !== undefined && behaviorScore < 20) {
+      addSuspicion(ip, 30);
+      return res.status(400).json({ error: 'Bot-like behaviour detected. Please try again.' });
+    }
 
     if (!username || !password) {
       return res.status(400).json({ error: 'Username and password are required' });
@@ -42,19 +85,29 @@ router.post('/register', registerLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Username must be 3-20 chars: letters/numbers/underscore' });
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
     }
 
     if (displayName && displayName.length > 50) {
       return res.status(400).json({ error: 'Display name too long (max 50)' });
     }
 
-    // CAPTCHA validation
+    // ── Proof-of-Work validation ──────────────────────────────────────────────
+    if (!powId || !powNonce) {
+      return res.status(400).json({ error: 'Proof-of-work required. Please wait for verification to complete.' });
+    }
+    if (!validatePow(powId, powNonce, ip)) {
+      addSuspicion(ip, 20);
+      return res.status(400).json({ error: 'Invalid proof-of-work. Please refresh and try again.' });
+    }
+
+    // ── CAPTCHA validation ────────────────────────────────────────────────────
     if (!captchaId || captchaAnswer === undefined || captchaAnswer === '') {
       return res.status(400).json({ error: 'CAPTCHA required' });
     }
-    if (!validateCaptcha(captchaId, Number(captchaAnswer))) {
+    if (!validateCaptcha(captchaId, Number(captchaAnswer), ip)) {
+      addSuspicion(ip, 10);
       return res.status(400).json({ error: 'Incorrect CAPTCHA. Please try again.' });
     }
 
