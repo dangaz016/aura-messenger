@@ -221,8 +221,22 @@ export function generatePowChallenge(ip = ''): { id: string; challenge: string; 
 
 export function validatePow(id: string, nonce: string, ip = ''): boolean {
   const entry = powChallenges.get(id);
-  if (!entry || entry.used || entry.expires < Date.now()) return false;
-  if (entry.ip && ip && entry.ip !== ip) return false;
+  if (!entry) {
+    console.log(`PoW not found (ID: ${id})`);
+    return false;
+  }
+  if (entry.used) {
+    console.log(`PoW already used (ID: ${id})`);
+    return false;
+  }
+  if (entry.expires < Date.now()) {
+    console.log(`PoW expired (ID: ${id})`);
+    return false;
+  }
+  if (entry.ip && ip && entry.ip !== ip) {
+    console.log(`PoW IP mismatch (expected: ${entry.ip}, got: ${ip})`);
+    return false;
+  }
 
   // Verify: SHA256(challenge + nonce) must have `difficulty` leading zero bits
   const hash = crypto.createHash('sha256')
@@ -243,8 +257,12 @@ export function validatePow(id: string, nonce: string, ip = ''): boolean {
     if (zeroBits >= entry.difficulty) break;
   }
 
-  if (zeroBits < entry.difficulty) return false;
+  if (zeroBits < entry.difficulty) {
+    console.log(`PoW insufficient difficulty (expected: ${entry.difficulty}, got: ${zeroBits})`);
+    return false;
+  }
   entry.used = true;
+  console.log(`PoW validated successfully (ID: ${id})`);
   return true;
 }
 
