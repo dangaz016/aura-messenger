@@ -15,49 +15,67 @@ function getCtx(): AudioContext | null {
 }
 
 /**
- * Plays a soft "whoosh" send-sound (two quick sine tones, Telegram-style).
- * Volume is kept low (~15%) so it doesn't startle the user.
+ * Plays a pleasant upward chord for message send (like iOS/Telegram).
+ * Frequencies: C5 → E5 → G5 (major chord)
  */
 export function playMessageSentSound() {
   if (localStorage.getItem('aura_sound_send') === 'false') return;
   const ctx = getCtx();
   if (!ctx) return;
 
-  // Resume if suspended (browser policy)
   if (ctx.state === 'suspended') ctx.resume();
 
   const now = ctx.currentTime;
+  const baseVolume = 0.08; // Gentle volume
+  
+  // Master gain with smooth ADSR envelope
   const master = ctx.createGain();
   master.gain.setValueAtTime(0, now);
-  master.gain.linearRampToValueAtTime(0.13, now + 0.01);
-  master.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+  master.gain.linearRampToValueAtTime(baseVolume, now + 0.015); // Attack
+  master.gain.exponentialRampToValueAtTime(0.001, now + 0.35); // Decay + Release
   master.connect(ctx.destination);
 
-  // First tone: short click (600 Hz → 800 Hz)
-  const osc1 = ctx.createOscillator();
-  osc1.type = 'sine';
-  osc1.frequency.setValueAtTime(600, now);
-  osc1.frequency.linearRampToValueAtTime(800, now + 0.08);
-  osc1.connect(master);
-  osc1.start(now);
-  osc1.stop(now + 0.1);
+  // Create three oscillators for a pleasant major chord
+  const frequencies = [
+    { freq: 523.25, delay: 0.00 },  // C5
+    { freq: 659.25, delay: 0.05 },  // E5
+    { freq: 783.99, delay: 0.10 },  // G5
+  ];
 
-  // Second tone: slight swoosh (400 Hz → 300 Hz)
-  const osc2 = ctx.createOscillator();
-  osc2.type = 'sine';
-  osc2.frequency.setValueAtTime(400, now + 0.06);
-  osc2.frequency.linearRampToValueAtTime(300, now + 0.22);
-  const g2 = ctx.createGain();
-  g2.gain.setValueAtTime(0.07, now + 0.06);
-  g2.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
-  osc2.connect(g2);
-  g2.connect(ctx.destination);
-  osc2.start(now + 0.06);
-  osc2.stop(now + 0.22);
+  frequencies.forEach(({ freq, delay }) => {
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, now + delay);
+    
+    // Individual envelope for each note
+    const noteGain = ctx.createGain();
+    noteGain.gain.setValueAtTime(0, now + delay);
+    noteGain.gain.linearRampToValueAtTime(0.7, now + delay + 0.02);
+    noteGain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.25);
+    
+    osc.connect(noteGain);
+    noteGain.connect(master);
+    osc.start(now + delay);
+    osc.stop(now + delay + 0.3);
+  });
+
+  // Subtle high-frequency "sparkle" for polish
+  const sparkle = ctx.createOscillator();
+  sparkle.type = 'sine';
+  sparkle.frequency.setValueAtTime(2093, now + 0.12); // C7
+  const sparkleGain = ctx.createGain();
+  sparkleGain.gain.setValueAtTime(0, now + 0.12);
+  sparkleGain.gain.linearRampToValueAtTime(0.015, now + 0.14);
+  sparkleGain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+  sparkle.connect(sparkleGain);
+  sparkleGain.connect(ctx.destination);
+  sparkle.start(now + 0.12);
+  sparkle.stop(now + 0.3);
 }
 
 /**
- * Plays a soft incoming message notification sound.
+ * Plays a soft downward chord for incoming messages (notification style).
+ * Frequencies: A5 → F#5 → D5 (descending triad)
  */
 export function playMessageReceivedSound() {
   if (localStorage.getItem('aura_sound_receive') === 'false') return;
@@ -67,18 +85,47 @@ export function playMessageReceivedSound() {
   if (ctx.state === 'suspended') ctx.resume();
 
   const now = ctx.currentTime;
+  const baseVolume = 0.10;
+
   const master = ctx.createGain();
   master.gain.setValueAtTime(0, now);
-  master.gain.linearRampToValueAtTime(0.10, now + 0.015);
-  master.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+  master.gain.linearRampToValueAtTime(baseVolume, now + 0.02);
+  master.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
   master.connect(ctx.destination);
 
-  const osc = ctx.createOscillator();
-  osc.type = 'sine';
-  osc.frequency.setValueAtTime(880, now);
-  osc.frequency.setValueAtTime(1100, now + 0.05);
-  osc.frequency.exponentialRampToValueAtTime(880, now + 0.15);
-  osc.connect(master);
-  osc.start(now);
-  osc.stop(now + 0.3);
+  // Descending notes with slight overlap for smooth sound
+  const notes = [
+    { freq: 880.00, delay: 0.00 },  // A5
+    { freq: 739.99, delay: 0.06 },  // F#5  
+    { freq: 587.33, delay: 0.12 },  // D5
+  ];
+
+  notes.forEach(({ freq, delay }) => {
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, now + delay);
+    
+    const noteGain = ctx.createGain();
+    noteGain.gain.setValueAtTime(0, now + delay);
+    noteGain.gain.linearRampToValueAtTime(0.6, now + delay + 0.025);
+    noteGain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.28);
+    
+    osc.connect(noteGain);
+    noteGain.connect(master);
+    osc.start(now + delay);
+    osc.stop(now + delay + 0.35);
+  });
+
+  // Add a warm sub-bass for depth
+  const bass = ctx.createOscillator();
+  bass.type = 'sine';
+  bass.frequency.setValueAtTime(146.83, now); // D3
+  const bassGain = ctx.createGain();
+  bassGain.gain.setValueAtTime(0, now);
+  bassGain.gain.linearRampToValueAtTime(0.05, now + 0.03);
+  bassGain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+  bass.connect(bassGain);
+  bassGain.connect(ctx.destination);
+  bass.start(now);
+  bass.stop(now + 0.35);
 }
