@@ -8,17 +8,46 @@ const SOCKET_URL = import.meta.env.VITE_API_URL || undefined;
 class SocketService {
   private socket: Socket | null = null;
   private listeners = new Map<string, Set<Listener>>();
+  private savedToken: string | null = null;
 
   connect(token: string) {
     if (this.socket?.connected) return;
     if (this.socket) this.socket.disconnect();
 
-    this.socket = SOCKET_URL
-      ? io(SOCKET_URL, { auth: { token }, transports: ['websocket', 'polling'] })
-      : io({ auth: { token }, transports: ['websocket', 'polling'] });
+    this.savedToken = token;
 
-    this.socket.on('connect', () => console.log('[socket] connected'));
-    this.socket.on('disconnect', () => console.log('[socket] disconnected'));
+    this.socket = SOCKET_URL
+      ? io(SOCKET_URL, {
+          auth: { token },
+          transports: ['websocket', 'polling'],
+          reconnection: true,
+          reconnectionDelay: 1000,
+          reconnectionDelayMax: 5000,
+          reconnectionAttempts: Infinity,
+        })
+      : io({
+          auth: { token },
+          transports: ['websocket', 'polling'],
+          reconnection: true,
+          reconnectionDelay: 1000,
+          reconnectionDelayMax: 5000,
+          reconnectionAttempts: Infinity,
+        });
+
+    this.socket.on('connect', () => {
+      console.log('[socket] connected');
+      this.emit('reconnected', null);
+    });
+    this.socket.on('disconnect', (reason) => {
+      console.log('[socket] disconnected:', reason);
+      if (reason === 'io server disconnect') {
+        // Server forcefully disconnected, reconnect manually
+        this.socket?.connect();
+      }
+    });
+    this.socket.on('reconnect_attempt', (attempt) => {
+      console.log('[socket] reconnect attempt', attempt);
+    });
     this.socket.on('auth_error', (e) => console.error('[socket] auth error', e));
 
     const events = [

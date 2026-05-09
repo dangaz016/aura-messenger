@@ -3,6 +3,7 @@ import { User } from '../types';
 import { api } from '../services/api';
 import { socketService } from '../services/socket';
 import { cryptoService } from '../services/crypto';
+import { clearSessionState } from '../utils/sessionStorage';
 
 interface AuthContextValue {
   user: User | null;
@@ -68,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     api.clearToken();
     cryptoService.clearKeys();
     socketService.disconnect();
+    clearSessionState();
     setUser(null);
   }
 

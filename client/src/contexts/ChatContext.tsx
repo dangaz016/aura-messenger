@@ -4,6 +4,7 @@ import { api } from '../services/api';
 import { socketService } from '../services/socket';
 import { useAuth } from './AuthContext';
 import { playNotificationSound } from './ToastContext';
+import { saveActiveChat, loadActiveChat } from '../utils/sessionStorage';
 
 interface ChatContextValue {
   chats: Chat[];
@@ -71,11 +72,22 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     if (!user) return;
     const data = await api.getChats();
     setChats(data);
+
+    // Restore last active chat from localStorage
+    const savedChatId = loadActiveChat();
+    if (savedChatId && data.find(c => c.id === savedChatId)) {
+      setActiveChatId(savedChatId);
+    }
   }, [user]);
 
   useEffect(() => {
     if (user) refreshChats();
   }, [user, refreshChats]);
+
+  // Save active chat to localStorage whenever it changes
+  useEffect(() => {
+    saveActiveChat(activeChatId);
+  }, [activeChatId]);
 
   useEffect(() => {
     if (!user) return;

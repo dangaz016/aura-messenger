@@ -6,6 +6,7 @@ import { api } from '../../services/api';
 import { SuggestReply } from '../AI/SuggestReply';
 import { Message } from '../../types';
 import { playMessageSentSound } from '../../utils/sounds';
+import { saveDraft, loadDraft, clearDraft } from '../../utils/sessionStorage';
 
 export interface ReplyTarget {
   id: string;
@@ -88,6 +89,20 @@ export function MessageInput({ chatId, replyTo, onClearReply }: MessageInputProp
   const videoTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const videoStreamRef = useRef<MediaStream | null>(null);
 
+  // Restore draft when chatId changes
+  useEffect(() => {
+    const draft = loadDraft(chatId);
+    setText(draft);
+  }, [chatId]);
+
+  // Save draft when text changes (debounced)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      saveDraft(chatId, text);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [text, chatId]);
+
   useEffect(() => {
     return () => {
       if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
@@ -128,6 +143,7 @@ export function MessageInput({ chatId, replyTo, onClearReply }: MessageInputProp
     });
     playMessageSentSound();
     setText('');
+    clearDraft(chatId);
     setShowEmoji(false);
     onClearReply?.();
     if (isTypingRef.current) {
