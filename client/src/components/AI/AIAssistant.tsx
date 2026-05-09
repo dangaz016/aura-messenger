@@ -29,6 +29,7 @@ export function AIAssistant({ open, onClose }: AIAssistantProps) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [available, setAvailable] = useState<boolean | null>(null);
+  const [modelName, setModelName] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -38,8 +39,15 @@ export function AIAssistant({ open, onClose }: AIAssistantProps) {
   useEffect(() => {
     if (open && available === null) {
       api.aiStatus()
-        .then(s => setAvailable(s.available))
-        .catch(() => setAvailable(false));
+        .then(s => {
+          setAvailable(s.available);
+          setModelName(s.model);
+          console.log('[AI] Status:', s.available ? `✅ Available (${s.model})` : '❌ Not configured');
+        })
+        .catch(err => {
+          console.error('[AI] Status check failed:', err);
+          setAvailable(false);
+        });
     }
   }, [open, available]);
 
@@ -96,7 +104,12 @@ export function AIAssistant({ open, onClose }: AIAssistantProps) {
             <div>
               <h2 className="font-semibold">{t('ai.title')}</h2>
               <div className="text-xs text-aura-text-dim flex items-center gap-1">
-                {available === true && <><span className="w-1.5 h-1.5 rounded-full bg-aura-online inline-block" />{t('ai.online')}</>}
+                {available === true && (
+                  <>
+                    <span className="w-1.5 h-1.5 rounded-full bg-aura-online inline-block" />
+                    {modelName ? `${t('ai.online')} • ${modelName}` : t('ai.online')}
+                  </>
+                )}
                 {available === false && <><span className="w-1.5 h-1.5 rounded-full bg-aura-dnd inline-block" />{t('ai.offline')}</>}
                 {available === null && t('ai.connecting')}
               </div>

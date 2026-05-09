@@ -12,6 +12,12 @@ interface AuthContextValue {
   register: (username: string, password: string, displayName?: string, captchaId?: string, captchaAnswer?: string) => Promise<void>;
   logout: () => void;
   updateUser: (user: User) => void;
+  // ban/freeze state (updated in real time)
+  isBanned: boolean;
+  banReason: string | null;
+  isFrozen: boolean;
+  freezeUntil: number;
+  freezeReason: string | null;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -19,6 +25,11 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isBanned, setIsBanned] = useState(false);
+  const [banReason, setBanReason] = useState<string | null>(null);
+  const [isFrozen, setIsFrozen] = useState(false);
+  const [freezeUntil, setFreezeUntil] = useState(0);
+  const [freezeReason, setFreezeReason] = useState<string | null>(null);
 
   useEffect(() => {
     const token = api.getToken();
@@ -29,18 +40,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     api.me()
       .then(async (u) => {
         setUser(u);
+        // Restore ban/freeze state from server
+        if (u.isBanned) { setIsBanned(true); setBanReason(u.banReason ?? null); }
+        if (u.isFrozen && u.freezeUntil && u.freezeUntil > Math.floor(Date.now() / 1000)) {
+          setIsFrozen(true);
+          setFreezeUntil(u.freezeUntil);
+          setFreezeReason(u.freezeReason ?? null);
+        }
         await ensurePublicKey(u);
         socketService.connect(token);
       })
       .catch((err) => {
-        // Only clear token on auth errors (401/403/404), not network/server errors
         const status = err?.response?.status;
         if (status === 401 || status === 403 || status === 404) {
           api.clearToken();
         }
-        // For 500 / network errors: keep token, user stays "logged in" on next visit
       })
       .finally(() => setLoading(false));
+  }, []);
+
+  // Subscribe to real-time ban/freeze socket events
+  useEffect(() => {
+    const offBanned = socketService.onUserBanned(({ reason }) => {
+      setIsBanned(true);
+      setBanReason(reason);
+    });
+    const offUnbanned = socketService.onUserUnbanned(() => {
+      setIsBanned(false);
+      setBanReason(null);
+    });
+    const offFrozen = socketService.onUserFrozen(({ freezeUntil: until, reason }) => {
+      setIsFrozen(true);
+      setFreezeUntil(until);
+      setFreezeReason(reason);
+    });
+    const offUnfrozen = socketService.onUserUnfrozen(() => {
+      setIsFrozen(false);
+      setFreezeUntil(0);
+      setFreezeReason(null);
+    });
+    return () => { offBanned(); offUnbanned(); offFrozen(); offUnfrozen(); };
   }, []);
 
   async function ensurePublicKey(u: User) {
@@ -78,7 +117,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{
+      user, loading, login, register, logout, updateUser,
+      isBanned, banReason, isFrozen, freezeUntil, freezeReason,
+    }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Shield, Users, MessageCircle, BarChart3, Ban, Snowflake, Check, Search, AlertTriangle, Trash2 } from 'lucide-react';
+import { X, Shield, Users, MessageCircle, BarChart3, Ban, Snowflake, Check, Search, AlertTriangle, Trash2, Clock } from 'lucide-react';
 import { api } from '../../services/api';
 import { getInitials } from '../../utils/formatters';
 
@@ -12,10 +12,25 @@ interface AdminUser {
   isBanned: boolean;
   isFrozen: boolean;
   banReason: string | null;
+  freezeReason: string | null;
+  freezeUntil: number;
   createdAt: number;
   lastSeen: number;
   email: string | null;
 }
+
+const FREEZE_PRESETS = [
+  { label: '15 минут', value: 15 },
+  { label: '30 минут', value: 30 },
+  { label: '1 час', value: 60 },
+  { label: '3 часа', value: 180 },
+  { label: '6 часов', value: 360 },
+  { label: '12 часов', value: 720 },
+  { label: '1 день', value: 1440 },
+  { label: '3 дня', value: 4320 },
+  { label: '1 неделя', value: 10080 },
+  { label: '1 месяц', value: 43200 },
+];
 
 interface Stats {
   users: number;
@@ -40,6 +55,10 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
   const [banReason, setBanReason] = useState('');
   const [banningUserId, setBanningUserId] = useState<string | null>(null);
   const [actionMsg, setActionMsg] = useState('');
+  // Freeze dialog state
+  const [freezeDialog, setFreezeDialog] = useState<{ userId: string; displayName: string } | null>(null);
+  const [freezeDuration, setFreezeDuration] = useState(60);
+  const [freezeReason, setFreezeReason] = useState('');
 
   useEffect(() => {
     loadStats();
@@ -98,20 +117,28 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
     } catch { showMsg('Error'); }
   }
 
-  async function handleFreeze(userId: string) {
+  function handleFreeze(userId: string, displayName: string) {
+    setFreezeDuration(60);
+    setFreezeReason('');
+    setFreezeDialog({ userId, displayName });
+  }
+
+  async function handleFreezeConfirm() {
+    if (!freezeDialog) return;
     try {
-      await api.adminFreezeUser(userId);
-      showMsg('User frozen');
+      await api.adminFreezeUser(freezeDialog.userId, freezeDuration, freezeReason || undefined);
+      showMsg('Пользователь заморожен');
+      setFreezeDialog(null);
       loadUsers();
-    } catch { showMsg('Error'); }
+    } catch { showMsg('Ошибка'); }
   }
 
   async function handleUnfreeze(userId: string) {
     try {
       await api.adminUnfreezeUser(userId);
-      showMsg('User unfrozen');
+      showMsg('Пользователь разморожен');
       loadUsers();
-    } catch { showMsg('Error'); }
+    } catch { showMsg('Ошибка'); }
   }
 
   async function handleMakeAdmin(userId: string) {
@@ -234,12 +261,12 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
                         )}
                         {u.isFrozen ? (
                           <button onClick={() => handleUnfreeze(u.id)}
-                            className="p-1.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 transition-colors" title="Unfreeze">
+                            className="p-1.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 transition-colors" title="Разморозить">
                             <Check className="w-3.5 h-3.5" />
                           </button>
                         ) : (
-                          <button onClick={() => handleFreeze(u.id)}
-                            className="p-1.5 rounded-lg hover:bg-cyan-500/10 text-aura-text-muted hover:text-cyan-400 transition-colors" title="Freeze">
+                          <button onClick={() => handleFreeze(u.id, u.displayName)}
+                            className="p-1.5 rounded-lg hover:bg-cyan-500/10 text-aura-text-muted hover:text-cyan-400 transition-colors" title="Заморозить">
                             <Snowflake className="w-3.5 h-3.5" />
                           </button>
                         )}
@@ -302,6 +329,71 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
           )}
         </div>
       </div>
+
+      {/* Freeze Dialog */}
+      {freezeDialog && (
+        <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-aura-surface border border-cyan-700/50 rounded-2xl w-full max-w-sm p-6 animate-scale-in shadow-xl shadow-cyan-900/30">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center">
+                <Snowflake className="w-5 h-5 text-cyan-400" />
+              </div>
+              <div>
+                <h3 className="font-bold text-white">Заморозить пользователя</h3>
+                <p className="text-xs text-aura-text-muted">{freezeDialog.displayName}</p>
+              </div>
+            </div>
+
+            {/* Duration presets */}
+            <p className="text-xs text-aura-text-muted uppercase tracking-widest mb-2 font-semibold flex items-center gap-1">
+              <Clock className="w-3 h-3" /> Длительность
+            </p>
+            <div className="grid grid-cols-2 gap-1.5 mb-4">
+              {FREEZE_PRESETS.map(p => (
+                <button
+                  key={p.value}
+                  onClick={() => setFreezeDuration(p.value)}
+                  className={`px-3 py-2 rounded-xl text-sm font-medium transition-all ${
+                    freezeDuration === p.value
+                      ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/30'
+                      : 'bg-aura-elevated text-aura-text-muted hover:text-white hover:bg-aura-elevated/80'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Reason */}
+            <p className="text-xs text-aura-text-muted uppercase tracking-widest mb-2 font-semibold">Причина</p>
+            <input
+              type="text"
+              value={freezeReason}
+              onChange={e => setFreezeReason(e.target.value)}
+              placeholder="Причина заморозки (опционально)"
+              className="input-aura w-full mb-5"
+              maxLength={200}
+              onKeyDown={e => e.key === 'Enter' && handleFreezeConfirm()}
+            />
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setFreezeDialog(null)}
+                className="flex-1 py-2.5 rounded-xl border border-aura-border text-aura-text-muted hover:text-white hover:border-aura-text-muted transition-colors text-sm font-medium"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleFreezeConfirm}
+                className="flex-1 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-bold transition-colors flex items-center justify-center gap-2"
+              >
+                <Snowflake className="w-4 h-4" />
+                Заморозить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

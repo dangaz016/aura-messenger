@@ -18,6 +18,8 @@ import { AnimatedBackground } from './components/Common/AnimatedBackground';
 import { registerServiceWorker } from './utils/notifications';
 import { Sparkles, Bot, Bell, X, Shield } from 'lucide-react';
 import { AdminPanel } from './components/Admin/AdminPanel';
+import { BannedScreen } from './components/Common/BannedScreen';
+import { FrozenBanner } from './components/Common/FrozenBanner';
 
 // Telegram-style notification permission banner
 function NotificationBanner() {
@@ -93,7 +95,7 @@ function GlobalContextMenuBlocker() {
 }
 
 function AppShell() {
-  const { user, loading } = useAuth();
+  const { user, loading, isBanned, banReason, isFrozen, freezeUntil, freezeReason } = useAuth();
   const { t } = useT();
   const [showSettings, setShowSettings] = useState(false);
   const [showAI, setShowAI] = useState(false);
@@ -136,6 +138,11 @@ function AppShell() {
     );
   }
 
+  // Full-screen ban overlay — nothing else is accessible
+  if (isBanned) {
+    return <BannedScreen reason={banReason} />;
+  }
+
   return (
     <ChatProvider>
       <ToastProvider>
@@ -144,6 +151,9 @@ function AppShell() {
           <AnimatedBackground />
           <div className="h-screen flex flex-col overflow-hidden relative z-10">
             <NotificationBanner />
+            {isFrozen && freezeUntil > Math.floor(Date.now() / 1000) && (
+              <FrozenBanner freezeUntil={freezeUntil} reason={freezeReason} />
+            )}
             <div className="flex flex-1 overflow-hidden">
             <Sidebar
               onOpenSettings={() => setShowSettings(true)}

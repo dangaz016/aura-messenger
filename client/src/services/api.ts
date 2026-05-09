@@ -248,8 +248,8 @@ class ApiService {
     await this.client.post(`/admin/users/${userId}/unban`);
   }
 
-  async adminFreezeUser(userId: string) {
-    await this.client.post(`/admin/users/${userId}/freeze`);
+  async adminFreezeUser(userId: string, durationMinutes?: number, reason?: string) {
+    await this.client.post(`/admin/users/${userId}/freeze`, { durationMinutes, reason });
   }
 
   async adminUnfreezeUser(userId: string) {

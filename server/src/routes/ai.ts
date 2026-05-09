@@ -3,11 +3,10 @@ import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
 
-router.use(authenticateToken);
-
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const MODEL = process.env.AI_MODEL || 'llama-3.3-70b-versatile';
+// Updated models: llama-3.3-70b-versatile → llama-3.1-70b-versatile or mixtral-8x7b-32768
+const MODEL = process.env.AI_MODEL || 'llama-3.1-70b-versatile';
 
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -16,34 +15,80 @@ interface ChatMessage {
 
 async function callGroq(messages: ChatMessage[], maxTokens = 500): Promise<string> {
   if (!GROQ_API_KEY) {
+    console.error('[AI] GROQ_API_KEY not configured in environment');
     throw new Error('AI_NOT_CONFIGURED');
   }
-  const res = await fetch(GROQ_API_URL, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${GROQ_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      messages,
-      max_tokens: maxTokens,
-      temperature: 0.7,
-    }),
-  });
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Groq API error: ${res.status} ${text.slice(0, 200)}`);
+  console.log(`[AI] Calling Groq API with model: ${MODEL}, maxTokens: ${maxTokens}`);
+
+  try {
+    const res = await fetch(GROQ_API_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${GROQ_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages,
+        max_tokens: maxTokens,
+        temperature: 0.7,
+      }),
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      console.error(`[AI] Groq API error ${res.status}:`, text.slice(0, 500));
+      
+      // Parse error for better user feedback
+      let errorDetail = `API returned ${res.status}`;
+      try {
+        const errorJson = JSON.parse(text);
+        errorDetail = errorJson.error?.message || errorJson.message || errorDetail;
+      } catch {
+        // Not JSON, use text
+      }
+      
+      throw new Error(`Groq API error: ${errorDetail}`);
+    }
+
+    const data = await res.json() as { choices: { message: { content: string } }[] };
+    const content = data.choices?.[0]?.message?.content?.trim();
+    
+    if (!content) {
+      console.error('[AI] Empty response from Groq API:', JSON.stringify(data));
+      throw new Error('Empty response from AI');
+    }
+
+    console.log(`[AI] Successfully received ${content.length} chars from Groq`);
+    return content;
+  } catch (err) {
+    if (err instanceof Error && err.message.includes('AI_NOT_CONFIGURED')) {
+      throw err;
+    }
+    console.error('[AI] Groq API call failed:', err);
+    throw err;
   }
-
-  const data = await res.json() as { choices: { message: { content: string } }[] };
-  return data.choices?.[0]?.message?.content?.trim() || '';
 }
 
+// Public endpoint - no auth needed to check status
 router.get('/status', (_req, res) => {
-  res.json({ available: !!GROQ_API_KEY, model: GROQ_API_KEY ? MODEL : null });
+  const key = process.env.GROQ_API_KEY; // read fresh each time
+  const available = !!key;
+  console.log(`[AI] Status check - Available: ${available}, Model: ${available ? MODEL : 'N/A'}`);
+  res.json({ available, model: available ? MODEL : null });
 });
+
+// All routes below require authentication
+router.use(authenticateToken);
+
+// Log AI status on module load
+if (GROQ_API_KEY) {
+  console.log(`[AI] ✅ Groq AI configured with model: ${MODEL}`);
+  console.log(`[AI] API Key: ${GROQ_API_KEY.slice(0, 7)}...${GROQ_API_KEY.slice(-4)}`);
+} else {
+  console.log('[AI] ⚠️  Groq AI not configured - set GROQ_API_KEY in .env');
+}
 
 // POST /api/ai/chat - general chat with AI assistant
 router.post('/chat', async (req, res) => {

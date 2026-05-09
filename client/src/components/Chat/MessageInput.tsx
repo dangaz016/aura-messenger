@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Paperclip, Timer, Smile, X, Mic, Camera, Image, Video, Reply } from 'lucide-react';
+import { Send, Paperclip, Timer, Smile, X, Mic, Camera, Image, Video, Reply, Snowflake } from 'lucide-react';
 import { useChat } from '../../contexts/ChatContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useT } from '../../contexts/LanguageContext';
 import { api } from '../../services/api';
 import { SuggestReply } from '../AI/SuggestReply';
@@ -48,7 +49,10 @@ interface MessageInputProps {
 
 export function MessageInput({ chatId, replyTo, onClearReply }: MessageInputProps) {
   const { sendMessage, startTyping, stopTyping, messages: allMessages } = useChat();
+  const { isFrozen, freezeUntil, freezeReason } = useAuth();
   const { t } = useT();
+  // Is the freeze still active?
+  const frozenActive = isFrozen && freezeUntil > Math.floor(Date.now() / 1000);
   const ECHO_OPTIONS = getEchoOptions(t('input.echo_off'));
   const chatMessages = allMessages.get(chatId) || [];
   const [text, setText] = useState('');
@@ -394,6 +398,20 @@ export function MessageInput({ chatId, replyTo, onClearReply }: MessageInputProp
   }
 
   // ── Normal input UI ───────────────────────────────────────────────────────
+
+  // Frozen — show locked input instead
+  if (frozenActive) {
+    return (
+      <div className="border-t-2 border-cyan-700/60 bg-cyan-950/50 backdrop-blur-md p-4 flex items-center gap-3">
+        <Snowflake className="w-5 h-5 text-cyan-400 flex-shrink-0 animate-spin" style={{ animationDuration: '3s' }} />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-cyan-300">Отправка сообщений заблокирована</p>
+          {freezeReason && <p className="text-xs text-cyan-600 truncate">{freezeReason}</p>}
+        </div>
+        <Snowflake className="w-5 h-5 text-cyan-900 flex-shrink-0" />
+      </div>
+    );
+  }
 
   return (
     <div className="border-t border-aura-border bg-aura-surface/40 backdrop-blur-md safe-bottom">

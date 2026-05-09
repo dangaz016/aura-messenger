@@ -18,6 +18,11 @@ export interface User {
   bio?: string;
   birthday?: string | null;
   isAdmin?: boolean;
+  isBanned?: boolean;
+  isFrozen?: boolean;
+  banReason?: string | null;
+  freezeReason?: string | null;
+  freezeUntil?: number;
 }
 
 export interface Story {

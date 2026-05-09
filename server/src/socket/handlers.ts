@@ -11,6 +11,10 @@ interface AuthSocket extends Socket {
 
 const userSockets = new Map<string, Set<string>>();
 
+let _io: SocketIOServer | null = null;
+export function getIo(): SocketIOServer | null { return _io; }
+export function getUserSockets(): Map<string, Set<string>> { return userSockets; }
+
 // Anti-spam tracking
 const userMessageTimes = new Map<string, number[]>(); // userId -> array of timestamps
 const lastMessages = new Map<string, { content: string; timestamp: number }>(); // userId_chatId -> last message
@@ -53,6 +57,7 @@ function getRelatedUsers(userId: string): string[] {
 }
 
 export function setupSocketHandlers(io: SocketIOServer) {
+  _io = io;
   io.on('connection', (socket: AuthSocket) => {
     const token = socket.handshake.auth?.token as string | undefined;
     const payload = token ? verifyToken(token) : null;

@@ -23,6 +23,8 @@ export interface UserRow {
   is_banned: number;
   is_frozen: number;
   ban_reason: string | null;
+  freeze_reason: string | null;
+  freeze_until: number;
   bio: string;
   phone: string | null;
   birthday: string | null;
@@ -54,6 +56,11 @@ export interface PublicUser {
   bio: string;
   birthday: string | null;
   isAdmin: boolean;
+  isBanned: boolean;
+  isFrozen: boolean;
+  banReason: string | null;
+  freezeReason: string | null;
+  freezeUntil: number;
 }
 
 export interface ChatRow {
@@ -117,5 +124,10 @@ export function rowToPublicUser(row: UserRow): PublicUser {
     bio: row.bio || '',
     birthday: row.birthday ?? null,
     isAdmin: row.is_admin === 1,
+    isBanned: row.is_banned === 1,
+    isFrozen: row.is_frozen === 1,
+    banReason: row.ban_reason ?? null,
+    freezeReason: row.freeze_reason ?? null,
+    freezeUntil: row.freeze_until ?? 0,
   };
 }

@@ -4,7 +4,7 @@
   "description": "Aura Messenger backend - privacy-first messaging",
   "main": "src/index.ts",
   "scripts": {
-    "dev": "tsx --experimental-sqlite watch src/index.ts",
+    "dev": "tsx watch --experimental-sqlite src/index.ts",
     "prebuild": "cd .. && npm --prefix client install && npm --prefix client run build",
     "build": "tsc",
     "start": "node dist/index.js",
@@ -17,6 +17,7 @@
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^12.9.0",
     "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
     "express": "^4.21.1",
     "express-rate-limit": "^8.5.1",
     "helmet": "^8.1.0",

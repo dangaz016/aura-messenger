@@ -180,6 +180,8 @@ function initializeSchema(db: Database.Database) {
   try { db.exec("ALTER TABLE users ADD COLUMN is_banned INTEGER DEFAULT 0"); } catch { /* already exists */ }
   try { db.exec("ALTER TABLE users ADD COLUMN is_frozen INTEGER DEFAULT 0"); } catch { /* already exists */ }
   try { db.exec("ALTER TABLE users ADD COLUMN ban_reason TEXT"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE users ADD COLUMN freeze_reason TEXT"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE users ADD COLUMN freeze_until INTEGER DEFAULT 0"); } catch { /* already exists */ }
   try { db.exec("ALTER TABLE users ADD COLUMN bio TEXT DEFAULT ''"); } catch { /* already exists */ }
   try { db.exec("ALTER TABLE users ADD COLUMN phone TEXT"); } catch { /* already exists */ }
   try { db.exec("ALTER TABLE users ADD COLUMN birthday TEXT"); } catch { /* already exists */ }

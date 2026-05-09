@@ -52,7 +52,8 @@ class SocketService {
 
     const events = [
       'authenticated', 'new_message', 'user_status', 'typing', 'message_deleted', 'message_edited',
-      'reaction_update', 'messages_read', 'chat_pinned', 'error'
+      'reaction_update', 'messages_read', 'chat_pinned', 'error',
+      'user_banned', 'user_unbanned', 'user_frozen', 'user_unfrozen',
     ];
     for (const evt of events) {
       this.socket.on(evt, (data: unknown) => this.emit(evt, data));
@@ -111,6 +112,19 @@ class SocketService {
   }
   onChatPinned(listener: (d: { chatId: string; pinnedMessageId: string | null; pinnedContent: string | null; pinnedSenderName: string | null; pinnedType: string | null }) => void) {
     return this.on('chat_pinned', listener);
+  }
+
+  onUserBanned(listener: (d: { reason: string }) => void) {
+    return this.on('user_banned', listener);
+  }
+  onUserUnbanned(listener: () => void) {
+    return this.on('user_unbanned', listener);
+  }
+  onUserFrozen(listener: (d: { freezeUntil: number; reason: string; durationMinutes: number }) => void) {
+    return this.on('user_frozen', listener);
+  }
+  onUserUnfrozen(listener: () => void) {
+    return this.on('user_unfrozen', listener);
   }
 }
 
