@@ -45,6 +45,7 @@ export interface User {
   primeAnimatedAvatar?: boolean;
   // Linked accounts
   hasTelegram?: boolean;
+  telegram_username?: string | null;
   // Privacy settings (only for own profile)
   privacy?: PrivacySettings;
 }

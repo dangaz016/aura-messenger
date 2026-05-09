@@ -249,6 +249,19 @@ function initializeSchema(db: Database.Database) {
       UNIQUE(chat_id, user_id)
     )
   `);
+  // Telegram verification
+  try { db.exec("ALTER TABLE users ADD COLUMN telegram_username TEXT"); } catch { /* already exists */ }
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS telegram_verifications (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      code TEXT NOT NULL UNIQUE,
+      telegram_chat_id TEXT,
+      created_at INTEGER DEFAULT (unixepoch()),
+      expires_at INTEGER NOT NULL,
+      used INTEGER DEFAULT 0
+    )
+  `);
 }
 
 export function closeDb() {

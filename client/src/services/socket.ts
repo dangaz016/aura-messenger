@@ -6,7 +6,7 @@ type Listener<T = unknown> = (data: T) => void;
 const SOCKET_URL = import.meta.env.VITE_API_URL || undefined;
 
 class SocketService {
-  private socket: Socket | null = null;
+  socket: Socket | null = null;
   private listeners = new Map<string, Set<Listener>>();
   private savedToken: string | null = null;
 

@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, LogOut, Palette, ShieldCheck, Eye, EyeOff, BellOff, Check, Moon, Sparkles, Waves, Bell, Edit3, Camera, Loader2, Cake, Crown, Lock } from 'lucide-react';
+import { X, LogOut, Palette, ShieldCheck, Eye, EyeOff, BellOff, Check, Moon, Sparkles, Waves, Bell, Edit3, Camera, Loader2, Cake, Crown, Lock, Send } from 'lucide-react';
 import { AuraPrimePanel } from './AuraPrimePanel';
 import { PrivacySettingsPanel } from './PrivacySettingsPanel';
+import { TelegramLinkPanel } from './TelegramLinkPanel';
 import { useAuth } from '../../contexts/AuthContext';
 import { useChat } from '../../contexts/ChatContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -440,6 +441,11 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
           {/* Privacy — who can see */}
           <Section title="Конфиденциальность" icon={<Lock className="w-4 h-4 text-aura-primary-light" />}>
             <PrivacySettingsPanel />
+          </Section>
+
+          {/* Telegram Link */}
+          <Section title="Telegram" icon={<Send className="w-4 h-4 text-blue-400" />}>
+            <TelegramLinkPanel />
           </Section>
 
           {/* Notifications */}

@@ -459,6 +459,67 @@ export function setupSocketHandlers(io: SocketIOServer) {
       }
     });
 
+    // ══════════ WebRTC Voice Calls ══════════
+    socket.on('call:offer', (data: { targetUserId: string; offer: unknown; callerName: string }) => {
+      if (!socket.userId) return;
+      const targetSockets = userSockets.get(data.targetUserId);
+      if (targetSockets) {
+        for (const sid of targetSockets) {
+          io.to(sid).emit('call:offer', {
+            callerId: socket.userId,
+            callerName: data.callerName,
+            offer: data.offer,
+          });
+        }
+      }
+    });
+
+    socket.on('call:answer', (data: { targetUserId: string; answer: unknown }) => {
+      if (!socket.userId) return;
+      const targetSockets = userSockets.get(data.targetUserId);
+      if (targetSockets) {
+        for (const sid of targetSockets) {
+          io.to(sid).emit('call:answer', {
+            callerId: socket.userId,
+            answer: data.answer,
+          });
+        }
+      }
+    });
+
+    socket.on('call:ice-candidate', (data: { targetUserId: string; candidate: unknown }) => {
+      if (!socket.userId) return;
+      const targetSockets = userSockets.get(data.targetUserId);
+      if (targetSockets) {
+        for (const sid of targetSockets) {
+          io.to(sid).emit('call:ice-candidate', {
+            callerId: socket.userId,
+            candidate: data.candidate,
+          });
+        }
+      }
+    });
+
+    socket.on('call:reject', (data: { targetUserId: string }) => {
+      if (!socket.userId) return;
+      const targetSockets = userSockets.get(data.targetUserId);
+      if (targetSockets) {
+        for (const sid of targetSockets) {
+          io.to(sid).emit('call:rejected', { userId: socket.userId });
+        }
+      }
+    });
+
+    socket.on('call:end', (data: { targetUserId: string }) => {
+      if (!socket.userId) return;
+      const targetSockets = userSockets.get(data.targetUserId);
+      if (targetSockets) {
+        for (const sid of targetSockets) {
+          io.to(sid).emit('call:ended', { userId: socket.userId });
+        }
+      }
+    });
+
     socket.on('disconnect', () => {
       if (!socket.userId) return;
       removeUserSocket(socket.userId, socket.id);

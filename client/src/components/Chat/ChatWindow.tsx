@@ -12,6 +12,7 @@ import { formatLastSeen } from '../../utils/formatters';
 interface ChatWindowProps {
   onOpenSidebar?: () => void;
   onCloseSidebar?: () => void;
+  onStartCall?: (userId: string, userName: string) => void;
 }
 
 function isBirthdayToday(birthday?: string | null): boolean {
@@ -22,7 +23,7 @@ function isBirthdayToday(birthday?: string | null): boolean {
   return birthday === `${mm}-${dd}`;
 }
 
-export function ChatWindow({ onOpenSidebar, onCloseSidebar }: ChatWindowProps) {
+export function ChatWindow({ onOpenSidebar, onCloseSidebar, onStartCall }: ChatWindowProps) {
   const { user } = useAuth();
   const { chats, activeChatId, setActiveChatId, loadMessages, userStatuses, typingUsers } = useChat();
   const { t, lang } = useT();
@@ -204,7 +205,13 @@ export function ChatWindow({ onOpenSidebar, onCloseSidebar }: ChatWindowProps) {
         <div className="flex items-center gap-0.5 flex-shrink-0">
           {activeChat.type === 'direct' && (
             <>
-              <IconBtn icon={<Phone className="w-4 h-4" />} title={t('chatwindow.voice_call')} />
+              <button
+                onClick={() => onStartCall?.(activeChat.otherUser?.id || '', activeChat.name || '')}
+                className="p-2 rounded-lg hover:bg-aura-surface2 transition-colors"
+                title={t('chatwindow.voice_call')}
+              >
+                <Phone className="w-4 h-4 text-aura-text-dim hover:text-aura-primary" />
+              </button>
               <IconBtn icon={<Video className="w-4 h-4" />} title={t('chatwindow.video_call')} />
             </>
           )}

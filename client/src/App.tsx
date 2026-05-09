@@ -20,6 +20,10 @@ import { Sparkles, Bell, X, Shield } from 'lucide-react';
 import { AdminPanel } from './components/Admin/AdminPanel';
 import { BannedScreen } from './components/Common/BannedScreen';
 import { FrozenBanner } from './components/Common/FrozenBanner';
+import { useCall } from './hooks/useCall';
+import { IncomingCallModal } from './components/Call/IncomingCallModal';
+import { ActiveCallModal } from './components/Call/ActiveCallModal';
+import { LaunchScreen } from './components/Common/LaunchScreen';
 
 // Telegram-style notification permission banner
 function NotificationBanner() {
@@ -103,6 +107,9 @@ function AppShell() {
   const [view, setView] = useState<'chats' | 'spaces'>('chats');
   const [showSidebar, setShowSidebar] = useState(false);
 
+  // Call management
+  const call = useCall();
+
   // On mobile: auto-open sidebar initially
   useEffect(() => {
     const isMobile = window.innerWidth < 1024;
@@ -116,17 +123,7 @@ function AppShell() {
   }, [user]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center gradient-bg">
-        <LanguageToggle floating />
-        <div className="text-center">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl gradient-aura animate-pulse-soft flex items-center justify-center">
-            <Sparkles className="w-8 h-8 text-white animate-sparkle" />
-          </div>
-          <div className="text-aura-text-dim text-sm">{t('app.loading')}</div>
-        </div>
-      </div>
-    );
+    return <LaunchScreen />;
   }
 
   if (!user) {
@@ -167,6 +164,7 @@ function AppShell() {
             <ChatWindow
               onOpenSidebar={() => setShowSidebar(true)}
               onCloseSidebar={handleCloseMobile}
+              onStartCall={call.startCall}
             />
 
             <LanguageToggle floating />
@@ -188,6 +186,28 @@ function AppShell() {
             <StoryViewer />
             <StoryComposer />
             <ToastContainer />
+
+            {/* Voice Call Modals */}
+            {call.callState === 'ringing' && call.isIncoming && call.remoteUserId && call.remoteUserName && (
+              <IncomingCallModal
+                callerName={call.remoteUserName}
+                callerId={call.remoteUserId}
+                onAccept={call.acceptCall}
+                onDecline={call.rejectCall}
+              />
+            )}
+
+            {(call.callState === 'calling' || call.callState === 'connected') && call.remoteUserId && call.remoteUserName && (
+              <ActiveCallModal
+                userName={call.remoteUserName}
+                userId={call.remoteUserId}
+                duration={call.callDuration}
+                isMuted={call.isMuted}
+                onMuteToggle={call.toggleMute}
+                onEndCall={call.endCall}
+                isConnected={call.callState === 'connected'}
+              />
+            )}
             </div>
           </div>
         </StoriesProvider>
