@@ -234,6 +234,8 @@ export const translations = {
   'ai.menu_label': { en: 'Aura AI', ru: 'Aura AI' },
   'ai.summarize': { en: 'Summarize chat', ru: 'Суммаризировать чат' },
   'ai.summary': { en: 'Summary', ru: 'Краткое содержание' },
+  'ai.tab_chat': { en: 'Chat', ru: 'Чат' },
+  'ai.tab_suggest': { en: 'Suggest reply', ru: 'Предложить ответ' },
 
   // ===== GOOGLE AUTH =====
   'auth.continue_google': { en: 'Continue with Google', ru: 'Войти через Google' },

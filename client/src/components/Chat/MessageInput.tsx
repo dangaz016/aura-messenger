@@ -4,8 +4,6 @@ import { useChat } from '../../contexts/ChatContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useT } from '../../contexts/LanguageContext';
 import { api } from '../../services/api';
-import { SuggestReply } from '../AI/SuggestReply';
-import { Message } from '../../types';
 import { playMessageSentSound } from '../../utils/sounds';
 import { saveDraft, loadDraft, clearDraft } from '../../utils/sessionStorage';
 
@@ -48,13 +46,12 @@ interface MessageInputProps {
 }
 
 export function MessageInput({ chatId, replyTo, onClearReply }: MessageInputProps) {
-  const { sendMessage, startTyping, stopTyping, messages: allMessages } = useChat();
+  const { sendMessage, startTyping, stopTyping } = useChat();
   const { isFrozen, freezeUntil, freezeReason } = useAuth();
   const { t } = useT();
   // Is the freeze still active?
   const frozenActive = isFrozen && freezeUntil > Math.floor(Date.now() / 1000);
   const ECHO_OPTIONS = getEchoOptions(t('input.echo_off'));
-  const chatMessages = allMessages.get(chatId) || [];
   const [text, setText] = useState('');
   const [echoDuration, setEchoDuration] = useState<number | null>(null);
   const [showEcho, setShowEcho] = useState(false);
@@ -500,8 +497,6 @@ export function MessageInput({ chatId, replyTo, onClearReply }: MessageInputProp
             </div>
           )}
         </div>
-
-        <SuggestReply messages={chatMessages} onPick={(s) => setText(s)} />
 
         {/* Echo timer */}
         <div className="relative">

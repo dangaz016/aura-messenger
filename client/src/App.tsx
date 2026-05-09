@@ -16,7 +16,7 @@ import { StoryComposer } from './components/Stories/StoryComposer';
 import { AIAssistant } from './components/AI/AIAssistant';
 import { AnimatedBackground } from './components/Common/AnimatedBackground';
 import { registerServiceWorker } from './utils/notifications';
-import { Sparkles, Bot, Bell, X, Shield } from 'lucide-react';
+import { Sparkles, Bell, X, Shield } from 'lucide-react';
 import { AdminPanel } from './components/Admin/AdminPanel';
 import { BannedScreen } from './components/Common/BannedScreen';
 import { FrozenBanner } from './components/Common/FrozenBanner';
@@ -170,33 +170,6 @@ function AppShell() {
             />
 
             <LanguageToggle floating />
-
-            {/* Floating AI button — beautiful, stands out */}
-            <button
-              onClick={() => setShowAI(true)}
-              className="
-                fixed bottom-24 right-4
-                lg:bottom-6 lg:right-auto lg:left-[14.5rem]
-                z-40
-                group flex items-center gap-2
-                bg-gradient-to-br from-violet-600 via-purple-500 to-fuchsia-500
-                hover:from-violet-500 hover:via-purple-400 hover:to-fuchsia-400
-                text-white
-                px-3 py-3 lg:px-4 lg:py-2.5
-                rounded-2xl
-                shadow-lg shadow-purple-500/40
-                hover:shadow-purple-500/60 hover:scale-105
-                active:scale-95
-                transition-all duration-200
-                border border-white/10
-              "
-              title={t('ai.menu_label')}
-            >
-              <Bot className="w-5 h-5 flex-shrink-0" />
-              <span className="hidden lg:block text-sm font-semibold whitespace-nowrap">Aura AI</span>
-              {/* Glow orb */}
-              <span className="absolute inset-0 rounded-2xl bg-gradient-to-br from-violet-400/20 to-fuchsia-400/20 blur-md -z-10 group-hover:blur-lg transition-all" />
-            </button>
 
             {/* Admin button — only for admin users */}
             {user?.isAdmin && (

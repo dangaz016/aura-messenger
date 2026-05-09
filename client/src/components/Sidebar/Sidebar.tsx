@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Search, Plus, Settings, Compass, MessageCircle, Hash } from 'lucide-react';
+import { Search, Plus, Settings, Compass, MessageCircle, Hash, Bot } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useChat } from '../../contexts/ChatContext';
 import { useT } from '../../contexts/LanguageContext';
@@ -17,7 +17,7 @@ interface SidebarProps {
   onCloseMobile?: () => void;
 }
 
-export function Sidebar({ onOpenSettings, view, setView, showMobile, onCloseMobile }: SidebarProps) {
+export function Sidebar({ onOpenSettings, onOpenAI, view, setView, showMobile, onCloseMobile }: SidebarProps) {
   const { user } = useAuth();
   const { chats, activeChatId, setActiveChatId, userStatuses } = useChat();
   const { t } = useT();
@@ -75,6 +75,13 @@ export function Sidebar({ onOpenSettings, view, setView, showMobile, onCloseMobi
             </div>
           </div>
 
+          <button
+            onClick={onOpenAI}
+            className="p-2 rounded-lg hover:bg-aura-elevated transition-colors text-aura-primary-light hover:text-aura-primary"
+            title={t('ai.menu_label')}
+          >
+            <Bot className="w-5 h-5" />
+          </button>
           <button
             onClick={onOpenSettings}
             className="p-2 rounded-lg hover:bg-aura-elevated transition-colors text-aura-text-dim hover:text-aura-text"
