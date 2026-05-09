@@ -207,7 +207,7 @@ setInterval(() => {
 
 export function generatePowChallenge(ip = ''): { id: string; challenge: string; difficulty: number } {
   const challenge = crypto.randomBytes(32).toString('hex');
-  const difficulty = 20; // 20 leading zero bits — ~1M hashes, ~2-5 seconds on modern hardware
+  const difficulty = 16; // 16 leading zero bits — ~65k hashes, ~1-2 seconds on modern hardware
   const id = uuidv4();
   powChallenges.set(id, {
     challenge,
