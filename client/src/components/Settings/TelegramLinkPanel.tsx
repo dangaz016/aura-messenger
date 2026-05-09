@@ -96,7 +96,7 @@ export function TelegramLinkPanel() {
               <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30">
                 <div className="text-sm font-medium text-blue-400 mb-2">Инструкция:</div>
                 <ol className="text-xs text-aura-text-dim space-y-1 list-decimal list-inside">
-                  <li>Открой Telegram и найди бота <span className="font-mono text-aura-text">@AuraVerifyBot</span></li>
+                  <li>Открой Telegram и найди бота <span className="font-mono text-aura-text">@AuraAuthBotBot</span></li>
                   <li>Отправь команду <span className="font-mono text-aura-text">/start</span></li>
                   <li>Введи код: <span className="font-mono text-aura-text">{verificationCode}</span></li>
                   <li>Аккаунт будет привязан автоматически</li>
@@ -105,7 +105,7 @@ export function TelegramLinkPanel() {
 
               {/* Open in Telegram */}
               <a
-                href={`https://t.me/AuraVerifyBot?start=${verificationCode}`}
+                href={`https://t.me/AuraAuthBotBot?start=${verificationCode}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full px-4 py-3 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-medium transition-colors flex items-center justify-center gap-2"

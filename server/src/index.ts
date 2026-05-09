@@ -21,6 +21,35 @@ import storiesRoutes, { startStoryCleanup } from './routes/stories';
 import aiRoutes from './routes/ai';
 import adminRoutes, { reportRouter } from './routes/admin';
 import primeRoutes from './routes/prime';
+import telegramRoutes from './routes/telegram';
+
+// ── Setup Telegram Webhook ───────────────────────────────────────────────────
+async function setupTelegramWebhook() {
+  const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+  if (!BOT_TOKEN) {
+    console.log('[telegram] No TELEGRAM_BOT_TOKEN found, skipping webhook setup');
+    return;
+  }
+
+  const PUBLIC_URL = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
+  const webhookUrl = `${PUBLIC_URL}/api/telegram/webhook`;
+
+  try {
+    const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/setWebhook`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: webhookUrl }),
+    });
+    const data = await response.json() as { ok: boolean; description?: string };
+    if (data.ok) {
+      console.log(`[telegram] Webhook set to: ${webhookUrl}`);
+    } else {
+      console.error('[telegram] Failed to set webhook:', data.description);
+    }
+  } catch (err) {
+    console.error('[telegram] Error setting webhook:', err);
+  }
+}
 
 // ── Auto-create first admin from env vars ────────────────────────────────────
 async function initAdminIfNeeded() {
@@ -115,6 +144,7 @@ app.use('/api/ai', aiLimiter, aiRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/report', reportRouter);
 app.use('/api/prime', primeRoutes);
+app.use('/api/telegram', telegramRoutes);
 
 // Serve client SPA in production. The client is built into ../client/dist
 // (from compiled server/dist, that's ../../client/dist).
@@ -146,6 +176,7 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 setupSocketHandlers(io);
 startStoryCleanup();
 initAdminIfNeeded();
+setupTelegramWebhook();
 
 server.listen(PORT, () => {
   console.log(`

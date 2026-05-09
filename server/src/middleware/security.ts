@@ -153,16 +153,35 @@ export function generateCaptcha(ip = ''): { id: string; question: string } {
   }
   const id = uuidv4();
   captchas.set(id, { answer, expires: Date.now() + 10 * 60 * 1000, used: false, ip });
+  console.log(`Generated captcha: ${question} = ${answer} (ID: ${id})`);
   return { id, question };
 }
 
 export function validateCaptcha(id: string, answer: number, ip = ''): boolean {
   const entry = captchas.get(id);
-  if (!entry || entry.used || entry.expires < Date.now()) return false;
+  if (!entry) {
+    console.log(`Captcha not found (ID: ${id})`);
+    return false;
+  }
+  if (entry.used) {
+    console.log(`Captcha already used (ID: ${id})`);
+    return false;
+  }
+  if (entry.expires < Date.now()) {
+    console.log(`Captcha expired (ID: ${id})`);
+    return false;
+  }
   // IP binding
-  if (entry.ip && ip && entry.ip !== ip) return false;
-  if (entry.answer !== Math.floor(answer)) return false;
+  if (entry.ip && ip && entry.ip !== ip) {
+    console.log(`Captcha IP mismatch (ID: ${id})`);
+    return false;
+  }
+  if (entry.answer !== Math.floor(answer)) {
+    console.log(`Incorrect captcha answer (ID: ${id}, expected: ${entry.answer}, got: ${answer})`);
+    return false;
+  }
   entry.used = true;
+  console.log(`Captcha validated successfully (ID: ${id})`);
   return true;
 }
 
