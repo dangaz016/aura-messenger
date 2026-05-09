@@ -21,6 +21,7 @@ interface ChatContextValue {
   startTyping: (chatId: string) => void;
   stopTyping: (chatId: string) => void;
   deleteMessage: (messageId: string) => void;
+  editMessage: (messageId: string, content: string) => void;
   toggleReaction: (messageId: string, emoji: string) => void;
   updateAuraMode: (mode: AuraMode) => void;
   explodingIds: Set<string>;
@@ -153,6 +154,18 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       refreshChats();
     });
 
+    const unsubEdit = socketService.onMessageEdited((d) => {
+      setMessages((prev) => {
+        const next = new Map(prev);
+        const list = next.get(d.chatId);
+        if (!list) return prev;
+        next.set(d.chatId, list.map(m =>
+          m.id === d.messageId ? { ...m, content: d.content, editedAt: d.editedAt } : m
+        ));
+        return next;
+      });
+    });
+
     const unsubReact = socketService.onReaction((d) => {
       setMessages((prev) => {
         const next = new Map(prev);
@@ -174,7 +187,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     });
 
     return () => {
-      unsubMsg(); unsubStatus(); unsubTyping(); unsubDel(); unsubReact();
+      unsubMsg(); unsubStatus(); unsubTyping(); unsubDel(); unsubEdit(); unsubReact();
     };
   }, [user, refreshChats]);
 
@@ -223,6 +236,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     socketService.deleteMessage(messageId);
   }, []);
 
+  const editMessage = useCallback((messageId: string, content: string) => {
+    socketService.editMessage(messageId, content);
+  }, []);
+
   const toggleReaction = useCallback((messageId: string, emoji: string) => {
     socketService.addReaction(messageId, emoji);
   }, []);
@@ -240,7 +257,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       chats, activeChatId, setActiveChatId, messages, loadMessages, sendMessage,
       refreshChats, createDirectChat, createGroupChat, createSpace,
       userStatuses, typingUsers, startTyping, stopTyping,
-      deleteMessage, toggleReaction, updateAuraMode,
+      deleteMessage, editMessage, toggleReaction, updateAuraMode,
       explodingIds,
     }}>
       {children}

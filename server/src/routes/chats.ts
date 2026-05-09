@@ -489,4 +489,79 @@ router.get('/search/public', (req, res) => {
   res.json(rows);
 });
 
+// Get chat media (images, videos, voice)
+router.get('/:chatId/media', (req, res) => {
+  const db = getDb();
+  const { chatId } = req.params;
+  const userId = req.user!.userId;
+
+  if (!isMember(chatId, userId)) {
+    return res.status(403).json({ error: 'Not a member' });
+  }
+
+  const media = db.prepare(`
+    SELECT m.id, m.type, m.file_id, m.created_at, m.content,
+           f.original_name as file_name, f.mime_type as file_mime,
+           u.display_name as sender_name
+    FROM messages m
+    LEFT JOIN files f ON f.id = m.file_id
+    LEFT JOIN users u ON u.id = m.sender_id
+    WHERE m.chat_id = ? AND m.is_deleted = 0 AND m.type IN ('image', 'video', 'voice')
+    ORDER BY m.created_at DESC
+    LIMIT 100
+  `).all(chatId) as unknown[];
+
+  res.json(media);
+});
+
+// Get pinned message
+router.get('/:chatId/pinned', (req, res) => {
+  const db = getDb();
+  const { chatId } = req.params;
+  const userId = req.user!.userId;
+
+  if (!isMember(chatId, userId)) {
+    return res.status(403).json({ error: 'Not a member' });
+  }
+
+  const chat = db.prepare('SELECT pinned_message_id FROM chats WHERE id = ?')
+    .get(chatId) as unknown as { pinned_message_id: string | null } | undefined;
+
+  if (!chat || !chat.pinned_message_id) {
+    return res.json(null);
+  }
+
+  const msg = db.prepare(`
+    SELECT m.*, u.username, u.display_name, u.avatar_color,
+           f.original_name as file_name, f.mime_type as file_mime
+    FROM messages m
+    LEFT JOIN users u ON u.id = m.sender_id
+    LEFT JOIN files f ON f.id = m.file_id
+    WHERE m.id = ?
+  `).get(chat.pinned_message_id) as unknown as MessageRow & {
+    username: string;
+    display_name: string;
+    avatar_color: string;
+    file_name: string | null;
+    file_mime: string | null;
+  } | undefined;
+
+  if (!msg) return res.json(null);
+
+  res.json({
+    id: msg.id,
+    chatId: msg.chat_id,
+    senderId: msg.sender_id,
+    senderName: msg.display_name,
+    senderUsername: msg.username,
+    senderAvatarColor: msg.avatar_color,
+    content: msg.content,
+    type: msg.type,
+    fileId: msg.file_id,
+    fileName: msg.file_name,
+    fileMime: msg.file_mime,
+    createdAt: msg.created_at,
+  });
+});
+
 export default router;

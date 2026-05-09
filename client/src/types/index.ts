@@ -114,6 +114,8 @@ export interface Message {
   replyContent: string | null;
   replyType: string | null;
   replySenderName: string | null;
+  forwardedFromId?: string | null;
+  forwardedFromName?: string | null;
 }
 
 export interface UserStatus {

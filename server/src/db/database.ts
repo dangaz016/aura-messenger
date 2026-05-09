@@ -134,11 +134,19 @@ function initializeSchema(db: Database.Database) {
       PRIMARY KEY (story_id, user_id)
     );
 
+    CREATE TABLE IF NOT EXISTS message_reads (
+      message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      read_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      PRIMARY KEY (message_id, user_id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_messages_chat_id ON messages(chat_id);
     CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
     CREATE INDEX IF NOT EXISTS idx_chat_members_user_id ON chat_members(user_id);
     CREATE INDEX IF NOT EXISTS idx_stories_author ON stories(author_id);
     CREATE INDEX IF NOT EXISTS idx_stories_expires ON stories(expires_at);
+    CREATE INDEX IF NOT EXISTS idx_message_reads ON message_reads(message_id);
   `);
 
   // Channels and new features tables
@@ -189,6 +197,10 @@ function initializeSchema(db: Database.Database) {
   } catch { /* ignore */ }
   // Migrations: messages table
   try { db.exec("ALTER TABLE messages ADD COLUMN reply_to_id TEXT REFERENCES messages(id)"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE messages ADD COLUMN forwarded_from_id TEXT"); } catch { /* already exists */ }
+  try { db.exec("ALTER TABLE messages ADD COLUMN forwarded_from_name TEXT"); } catch { /* already exists */ }
+  // Migrations: chats table (pinned message)
+  try { db.exec("ALTER TABLE chats ADD COLUMN pinned_message_id TEXT REFERENCES messages(id)"); } catch { /* already exists */ }
 }
 
 export function closeDb() {

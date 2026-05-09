@@ -83,6 +83,9 @@ export interface MessageRow {
   is_deleted: number;
   created_at: number;
   edited_at: number | null;
+  reply_to_id: string | null;
+  forwarded_from_id: string | null;
+  forwarded_from_name: string | null;
 }
 
 export interface JwtPayload {

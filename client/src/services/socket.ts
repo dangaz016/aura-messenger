@@ -21,7 +21,10 @@ class SocketService {
     this.socket.on('disconnect', () => console.log('[socket] disconnected'));
     this.socket.on('auth_error', (e) => console.error('[socket] auth error', e));
 
-    const events = ['authenticated', 'new_message', 'user_status', 'typing', 'message_deleted', 'reaction_update', 'error'];
+    const events = [
+      'authenticated', 'new_message', 'user_status', 'typing', 'message_deleted', 'message_edited',
+      'reaction_update', 'messages_read', 'chat_pinned', 'error'
+    ];
     for (const evt of events) {
       this.socket.on(evt, (data: unknown) => this.emit(evt, data));
     }
@@ -62,8 +65,24 @@ class SocketService {
   startTyping(chatId: string) { this.socket?.emit('typing_start', { chatId }); }
   stopTyping(chatId: string) { this.socket?.emit('typing_stop', { chatId }); }
   updateStatus(auraMode: 'available' | 'ghost' | 'dnd') { this.socket?.emit('update_status', { auraMode }); }
+  onMessageEdited(listener: (d: { messageId: string; chatId: string; content: string; editedAt: number }) => void) {
+    return this.on('message_edited', listener);
+  }
   addReaction(messageId: string, emoji: string) { this.socket?.emit('add_reaction', { messageId, emoji }); }
   deleteMessage(messageId: string) { this.socket?.emit('delete_message', { messageId }); }
+  editMessage(messageId: string, content: string) { this.socket?.emit('edit_message', { messageId, content }); }
+
+  // ── New features: read receipts, pinned, forwarding ──────────────────────────
+  markRead(messageId: string, chatId: string) { this.socket?.emit('mark_read', { messageId, chatId }); }
+  pinMessage(chatId: string, messageId: string | null) { this.socket?.emit('pin_message', { chatId, messageId }); }
+  forwardMessage(messageId: string, toChatId: string) { this.socket?.emit('forward_message', { messageId, toChatId }); }
+
+  onMessagesRead(listener: (d: { messageId: string; chatId: string; userId: string; readAt: number }) => void) {
+    return this.on('messages_read', listener);
+  }
+  onChatPinned(listener: (d: { chatId: string; pinnedMessageId: string | null; pinnedContent: string | null; pinnedSenderName: string | null; pinnedType: string | null }) => void) {
+    return this.on('chat_pinned', listener);
+  }
 }
 
 export const socketService = new SocketService();

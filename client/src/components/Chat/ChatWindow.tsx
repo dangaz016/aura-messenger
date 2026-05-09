@@ -6,6 +6,7 @@ import { useT } from '../../contexts/LanguageContext';
 import { Avatar } from '../Common/Avatar';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
+import { ChatInfoPanel } from './ChatInfoPanel';
 import { formatLastSeen } from '../../utils/formatters';
 
 interface ChatWindowProps {
@@ -26,6 +27,7 @@ export function ChatWindow({ onOpenSidebar, onCloseSidebar }: ChatWindowProps) {
   const { chats, activeChatId, setActiveChatId, loadMessages, userStatuses, typingUsers } = useChat();
   const { t, lang } = useT();
   const [bdDismissed, setBdDismissed] = useState(false);
+  const [infoPanelOpen, setInfoPanelOpen] = useState(false);
 
   const activeChat = useMemo(() => chats.find(c => c.id === activeChatId), [chats, activeChatId]);
 
@@ -154,43 +156,49 @@ export function ChatWindow({ onOpenSidebar, onCloseSidebar }: ChatWindowProps) {
             <ArrowLeft className="w-5 h-5" />
           </button>
 
-          {activeChat.type === 'space' ? (
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white flex-shrink-0"
-              style={{ background: `linear-gradient(135deg, ${activeChat.avatarColor} 0%, ${activeChat.avatarColor}cc 100%)` }}>
-              <Hash className="w-4 h-4" />
-            </div>
-          ) : activeChat.type === 'channel' ? (
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white flex-shrink-0"
-              style={{ background: `linear-gradient(135deg, ${activeChat.avatarColor} 0%, ${activeChat.avatarColor}cc 100%)` }}>
-              <Radio className="w-4 h-4" />
-            </div>
-          ) : activeChat.type === 'group' ? (
-            <div className="w-9 h-9 rounded-full flex items-center justify-center text-white flex-shrink-0"
-              style={{ background: `linear-gradient(135deg, ${activeChat.avatarColor} 0%, ${activeChat.avatarColor}cc 100%)` }}>
-              <Users className="w-4 h-4" />
-            </div>
-          ) : (
-            <Avatar
-              name={activeChat.name || '?'}
-              color={activeChat.avatarColor}
-              imageUrl={activeChat.otherUser?.avatarUrl ?? undefined}
-              size={36}
-              isOnline={isOnline}
-              auraMode={auraMode}
-            />
-          )}
+          {/* Clickable header area */}
+          <button
+            onClick={() => setInfoPanelOpen(true)}
+            className="flex items-center gap-2 min-w-0 hover:bg-aura-elevated rounded-lg px-1 py-1 -ml-1 transition-colors flex-1"
+          >
+            {activeChat.type === 'space' ? (
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white flex-shrink-0"
+                style={{ background: `linear-gradient(135deg, ${activeChat.avatarColor} 0%, ${activeChat.avatarColor}cc 100%)` }}>
+                <Hash className="w-4 h-4" />
+              </div>
+            ) : activeChat.type === 'channel' ? (
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white flex-shrink-0"
+                style={{ background: `linear-gradient(135deg, ${activeChat.avatarColor} 0%, ${activeChat.avatarColor}cc 100%)` }}>
+                <Radio className="w-4 h-4" />
+              </div>
+            ) : activeChat.type === 'group' ? (
+              <div className="w-9 h-9 rounded-full flex items-center justify-center text-white flex-shrink-0"
+                style={{ background: `linear-gradient(135deg, ${activeChat.avatarColor} 0%, ${activeChat.avatarColor}cc 100%)` }}>
+                <Users className="w-4 h-4" />
+              </div>
+            ) : (
+              <Avatar
+                name={activeChat.name || '?'}
+                color={activeChat.avatarColor}
+                imageUrl={activeChat.otherUser?.avatarUrl ?? undefined}
+                size={36}
+                isOnline={isOnline}
+                auraMode={auraMode}
+              />
+            )}
 
-          <div className="min-w-0">
-            <div className="font-semibold text-sm truncate flex items-center gap-1.5">
-              {activeChat.name}
-              {activeChat.type === 'direct' && activeChat.otherUser?.publicKey && (
-                <ShieldCheck className="w-3.5 h-3.5 text-aura-primary-light flex-shrink-0" />
-              )}
+            <div className="min-w-0 text-left">
+              <div className="font-semibold text-sm truncate flex items-center gap-1.5">
+                {activeChat.name}
+                {activeChat.type === 'direct' && activeChat.otherUser?.publicKey && (
+                  <ShieldCheck className="w-3.5 h-3.5 text-aura-primary-light flex-shrink-0" />
+                )}
+              </div>
+              <div className={`text-xs truncate ${typingNames.length > 0 ? 'text-aura-primary-light' : 'text-aura-text-dim'}`}>
+                {subtitle}
+              </div>
             </div>
-            <div className={`text-xs truncate ${typingNames.length > 0 ? 'text-aura-primary-light' : 'text-aura-text-dim'}`}>
-              {subtitle}
-            </div>
-          </div>
+          </button>
         </div>
 
         <div className="flex items-center gap-0.5 flex-shrink-0">
@@ -228,6 +236,16 @@ export function ChatWindow({ onOpenSidebar, onCloseSidebar }: ChatWindowProps) {
 
       <MessageList chatId={activeChat.id} />
       <MessageInput chatId={activeChat.id} chatType={activeChat.type} />
+
+      {/* Info Panel */}
+      {user && (
+        <ChatInfoPanel
+          chat={activeChat}
+          currentUserId={user.id}
+          isOpen={infoPanelOpen}
+          onClose={() => setInfoPanelOpen(false)}
+        />
+      )}
     </div>
   );
 }

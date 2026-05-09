@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Hash, Users, Timer, Trash2, Archive, Pin, BellOff, Radio, LogOut } from 'lucide-react';
+import { Hash, Users, Timer, Trash2, Archive, Pin, PinOff, BellOff, Bell, Radio, LogOut } from 'lucide-react';
 import { Chat, UserStatus } from '../../types';
 import { Avatar } from '../Common/Avatar';
 import { ContextMenu } from '../Common/ContextMenu';
@@ -8,6 +8,7 @@ import { formatChatListTime } from '../../utils/formatters';
 import { useT } from '../../contexts/LanguageContext';
 import { useChat } from '../../contexts/ChatContext';
 import { api } from '../../services/api';
+import { chatPrefs } from '../../utils/chatPrefs';
 
 interface ChatItemProps {
   chat: Chat;
@@ -21,7 +22,11 @@ export function ChatItem({ chat, active, onClick, userStatus }: ChatItemProps) {
   const { refreshChats, setActiveChatId } = useChat();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [pinned, setPinned] = useState(() => chatPrefs.isPinned(chat.id));
+  const [muted, setMuted] = useState(() => chatPrefs.isMuted(chat.id));
+  const [archived, setArchived] = useState(() => chatPrefs.isArchived(chat.id));
   const buttonRef = useRef<HTMLButtonElement>(null);
+
   const lastMsg = chat.lastMessage;
   const isOnline = chat.type === 'direct' && (userStatus?.isOnline ?? false);
   const auraMode = chat.type === 'direct' ? userStatus?.auraMode ?? chat.otherUser?.auraMode : undefined;
@@ -37,7 +42,7 @@ export function ChatItem({ chat, active, onClick, userStatus }: ChatItemProps) {
 
   const isEcho = !!lastMsg?.echoExpiresAt;
 
-  // Native event listener to prevent browser context menu
+  // Нативный обработчик ПКМ
   useEffect(() => {
     const el = buttonRef.current;
     if (!el) return;
@@ -59,21 +64,38 @@ export function ChatItem({ chat, active, onClick, userStatus }: ChatItemProps) {
     setConfirmDelete(false);
   }
 
+  function handlePin() {
+    const next = chatPrefs.togglePin(chat.id);
+    setPinned(next);
+  }
+
+  function handleMute() {
+    const next = chatPrefs.toggleMute(chat.id);
+    setMuted(next);
+  }
+
+  function handleArchive() {
+    const next = chatPrefs.toggleArchive(chat.id);
+    setArchived(next);
+    // Если заархивировали активный чат — сбрасываем выделение
+    if (next) setActiveChatId(null);
+  }
+
   const contextMenuItems = [
     {
-      label: t('chat_menu.pin'),
-      icon: Pin,
-      onClick: () => {},
+      label: pinned ? 'Открепить' : 'Закрепить',
+      icon: pinned ? PinOff : Pin,
+      onClick: handlePin,
     },
     {
-      label: t('chat_menu.mute'),
-      icon: BellOff,
-      onClick: () => {},
+      label: muted ? 'Включить звук' : 'Выключить звук',
+      icon: muted ? Bell : BellOff,
+      onClick: handleMute,
     },
     {
-      label: t('chat_menu.archive'),
+      label: archived ? 'Разархивировать' : 'Архивировать',
       icon: Archive,
-      onClick: () => {},
+      onClick: handleArchive,
     },
     {
       label: chat.type === 'channel' ? 'Покинуть канал' : chat.type === 'group' ? 'Покинуть группу' : t('chat_menu.delete'),
@@ -90,7 +112,7 @@ export function ChatItem({ chat, active, onClick, userStatus }: ChatItemProps) {
         onClick={onClick}
         className={`w-full flex items-center gap-3 px-3 py-2.5 transition-all duration-150 text-left hover:bg-aura-elevated active:scale-[0.98] ${
           active ? 'bg-aura-primary-dim border-l-2 border-aura-primary' : ''
-        }`}
+        } ${archived ? 'opacity-60' : ''}`}
       >
         <div className="relative flex-shrink-0">
           {chat.type === 'space' ? (
@@ -118,16 +140,29 @@ export function ChatItem({ chat, active, onClick, userStatus }: ChatItemProps) {
               auraMode={auraMode}
             />
           )}
+
+          {/* Закреплённый индикатор */}
+          {pinned && (
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-aura-primary rounded-full flex items-center justify-center">
+              <Pin className="w-2.5 h-2.5 text-white" />
+            </div>
+          )}
         </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2 mb-0.5">
-            <div className="font-medium truncate text-sm">{chat.name || 'Unknown'}</div>
-            {lastMsg && (
-              <div className="text-[11px] text-aura-text-muted flex-shrink-0">
-                {formatChatListTime(lastMsg.createdAt, lang)}
-              </div>
-            )}
+            <div className="font-medium truncate text-sm flex items-center gap-1">
+              {chat.name || 'Unknown'}
+              {pinned && <Pin className="w-3 h-3 text-aura-primary-light flex-shrink-0" />}
+            </div>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {muted && <BellOff className="w-3 h-3 text-aura-text-muted" />}
+              {lastMsg && (
+                <div className="text-[11px] text-aura-text-muted">
+                  {formatChatListTime(lastMsg.createdAt, lang)}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center justify-between gap-2">
@@ -139,8 +174,13 @@ export function ChatItem({ chat, active, onClick, userStatus }: ChatItemProps) {
               <span className="truncate">{lastMsgPreview}</span>
             </div>
 
-            {chat.unreadCount > 0 && (
+            {!muted && chat.unreadCount > 0 && (
               <span className="bg-aura-primary text-white text-[10px] rounded-full px-1.5 py-0.5 min-w-[18px] text-center font-medium flex-shrink-0 glow-primary">
+                {chat.unreadCount > 99 ? '99+' : chat.unreadCount}
+              </span>
+            )}
+            {muted && chat.unreadCount > 0 && (
+              <span className="bg-aura-surface2 border border-aura-border text-aura-text-muted text-[10px] rounded-full px-1.5 py-0.5 min-w-[18px] text-center font-medium flex-shrink-0">
                 {chat.unreadCount > 99 ? '99+' : chat.unreadCount}
               </span>
             )}

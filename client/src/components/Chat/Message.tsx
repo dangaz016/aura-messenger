@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { Timer, Trash2, Smile, Download, FileText, Play, Pause, Reply } from 'lucide-react';
+import { Timer, Trash2, Smile, Download, FileText, Play, Pause, Reply, Copy, Edit2, Check } from 'lucide-react';
 import { Message as MessageType } from '../../types';
 import { useChat } from '../../contexts/ChatContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useT } from '../../contexts/LanguageContext';
 import { api } from '../../services/api';
 import { formatMessageTime, formatEchoTime } from '../../utils/formatters';
+import { ContextMenu } from '../Common/ContextMenu';
 
 const REACTIONS = ['❤️', '👍', '😂', '🔥', '😮', '😢'];
 
@@ -59,26 +60,25 @@ function VoicePlayer({ url, isOwn }: { url: string; isOwn: boolean }) {
             return (
               <div
                 key={i}
-                className="w-1 rounded-full transition-colors"
+                className="rounded-full flex-shrink-0 transition-colors"
                 style={{
+                  width: '3px',
                   height: `${height}px`,
                   backgroundColor: filled
-                    ? (isOwn ? 'rgba(255,255,255,0.9)' : 'var(--color-aura-primary, #7C3AED)')
-                    : (isOwn ? 'rgba(255,255,255,0.35)' : 'rgba(124,58,237,0.3)'),
+                    ? (isOwn ? 'rgba(255,255,255,0.9)' : 'var(--aura-accent-light, #A78BFA)')
+                    : (isOwn ? 'rgba(255,255,255,0.3)' : 'rgba(124,58,237,0.3)'),
                 }}
               />
             );
           })}
         </div>
-        <div className={`text-[10px] ${isOwn ? 'text-white/60' : 'text-aura-text-muted'}`}>
-          {playing ? fmt(currentTime) : fmt(duration)} {!playing && duration > 0 ? '' : ''}
-        </div>
+        <div className="text-[10px] opacity-60">{fmt(currentTime)} / {fmt(duration)}</div>
       </div>
     </div>
   );
 }
 
-// ── Video circle player ────────────────────────────────────────────────────
+// ── Video circle ───────────────────────────────────────────────────────────
 
 function VideoCircle({ url }: { url: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -135,22 +135,35 @@ interface MessageProps {
   isFirstInGroup: boolean;
   showSender: boolean;
   isExploding?: boolean;
+  onReply?: (target: { id: string; senderName: string; content: string; type: string }) => void;
 }
 
-export function Message({ message, isOwn, isFirstInGroup, showSender, isExploding = false }: MessageProps) {
+export function Message({ message, isOwn, isFirstInGroup, showSender, isExploding = false, onReply }: MessageProps) {
   const { user } = useAuth();
-  const { deleteMessage, toggleReaction } = useChat();
+  const { deleteMessage, editMessage, toggleReaction } = useChat();
   const { t } = useT();
   const [showActions, setShowActions] = useState(false);
   const [showReactions, setShowReactions] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editText, setEditText] = useState(message.content);
+  const [copied, setCopied] = useState(false);
   const [, setTick] = useState(0);
+  const editInputRef = useRef<HTMLTextAreaElement>(null);
 
   const isEcho = !!message.echoExpiresAt;
   useEffect(() => {
     if (!isEcho) return;
-    const t = setInterval(() => setTick(x => x + 1), 1000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => setTick(x => x + 1), 1000);
+    return () => clearInterval(timer);
   }, [isEcho]);
+
+  useEffect(() => {
+    if (editMode && editInputRef.current) {
+      editInputRef.current.focus();
+      editInputRef.current.selectionStart = editInputRef.current.value.length;
+    }
+  }, [editMode]);
 
   const reactionGroups = message.reactions.reduce((acc, r) => {
     if (!acc[r.emoji]) acc[r.emoji] = [];
@@ -161,7 +174,55 @@ export function Message({ message, isOwn, isFirstInGroup, showSender, isExplodin
   const isImage = message.type === 'image' || (message.fileMime && message.fileMime.startsWith('image/'));
   const isVoice = message.type === 'voice';
   const isVideoCircle = message.type === 'video';
+  const isText = message.type === 'text';
   const fileUrl = message.fileId ? api.fileUrl(message.fileId) : null;
+
+  function handleContextMenu(e: React.MouseEvent) {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  }
+
+  function handleReply() {
+    onReply?.({
+      id: message.id,
+      senderName: message.senderName,
+      content: message.content,
+      type: message.type,
+    });
+  }
+
+  function handleCopy() {
+    if (!message.content) return;
+    navigator.clipboard.writeText(message.content).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }
+
+  function handleEdit() {
+    setEditText(message.content);
+    setEditMode(true);
+  }
+
+  function handleEditSave() {
+    const trimmed = editText.trim();
+    if (!trimmed || trimmed === message.content) { setEditMode(false); return; }
+    editMessage(message.id, trimmed);
+    setEditMode(false);
+  }
+
+  function handleEditKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleEditSave(); }
+    if (e.key === 'Escape') { setEditMode(false); setEditText(message.content); }
+  }
+
+  const menuItems = [
+    ...(onReply ? [{ label: 'Ответить', icon: Reply, onClick: handleReply }] : []),
+    ...(isText && message.content ? [{ label: copied ? 'Скопировано!' : 'Копировать текст', icon: copied ? Check : Copy, onClick: handleCopy }] : []),
+    ...(isOwn && isText ? [{ label: 'Редактировать', icon: Edit2, onClick: handleEdit }] : []),
+    { label: 'Реакция', icon: Smile, onClick: () => setShowReactions(true) },
+    ...(isOwn ? [{ label: 'Удалить', icon: Trash2, onClick: () => deleteMessage(message.id), danger: true }] : []),
+  ];
 
   return (
     <div
@@ -173,7 +234,7 @@ export function Message({ message, isOwn, isFirstInGroup, showSender, isExplodin
         <div className="w-8 flex-shrink-0">
           {isFirstInGroup && (
             <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold cursor-pointer hover:opacity-80 transition-opacity"
               style={{ background: `linear-gradient(135deg, ${message.senderAvatarColor} 0%, ${message.senderAvatarColor}cc 100%)` }}
             >
               {message.senderName.split(/\s+/).map(p => p[0]).join('').slice(0, 2).toUpperCase()}
@@ -191,13 +252,13 @@ export function Message({ message, isOwn, isFirstInGroup, showSender, isExplodin
 
         {/* Video circle — no bubble, just round video */}
         {isVideoCircle && fileUrl && (
-          <div className="relative group/bubble mb-1">
+          <div className="relative group/bubble mb-1" onContextMenu={handleContextMenu}>
             <VideoCircle url={fileUrl} />
             <div className={`absolute bottom-1 ${isOwn ? 'right-2' : 'left-2'} text-[10px] text-white/80 drop-shadow`}>
               {formatMessageTime(message.createdAt)}
             </div>
             {showActions && (
-              <div className={`absolute top-0 ${isOwn ? '-left-16' : '-right-16'} flex gap-1 opacity-0 group-hover/bubble:opacity-100 transition-opacity`}>
+              <div className={`absolute top-0 ${isOwn ? '-left-16' : '-right-16'} flex gap-1`}>
                 {isOwn && (
                   <button
                     onClick={() => deleteMessage(message.id)}
@@ -211,7 +272,7 @@ export function Message({ message, isOwn, isFirstInGroup, showSender, isExplodin
           </div>
         )}
 
-        <div className="relative group/bubble">
+        <div className="relative group/bubble" onContextMenu={!isVideoCircle ? handleContextMenu : undefined}>
           {/* Explosion particles */}
           {isExploding && Array.from({ length: 8 }).map((_, i) => {
             const angle = (i / 8) * 360;
@@ -283,8 +344,26 @@ export function Message({ message, isOwn, isFirstInGroup, showSender, isExplodin
               </a>
             )}
 
-            {message.content && !isVoice && (
-              <div className="text-sm whitespace-pre-wrap break-words leading-relaxed">{message.content}</div>
+            {/* Edit mode inline input */}
+            {editMode ? (
+              <div className="flex flex-col gap-1">
+                <textarea
+                  ref={editInputRef}
+                  value={editText}
+                  onChange={e => setEditText(e.target.value)}
+                  onKeyDown={handleEditKeyDown}
+                  className="bg-transparent resize-none text-sm w-full outline-none min-w-[160px]"
+                  rows={Math.max(1, editText.split('\n').length)}
+                />
+                <div className="flex gap-2 text-[11px]">
+                  <button onClick={handleEditSave} className="text-aura-online hover:underline">Сохранить</button>
+                  <button onClick={() => { setEditMode(false); setEditText(message.content); }} className="opacity-60 hover:underline">Отмена</button>
+                </div>
+              </div>
+            ) : (
+              message.content && !isVoice && (
+                <div className="text-sm whitespace-pre-wrap break-words leading-relaxed">{message.content}</div>
+              )
             )}
 
             <div className={`flex items-center gap-1.5 mt-1 text-[10px] ${isOwn ? 'text-white/70' : 'text-aura-text-muted'}`}>
@@ -296,12 +375,25 @@ export function Message({ message, isOwn, isFirstInGroup, showSender, isExplodin
                 </>
               )}
               <span>{formatMessageTime(message.createdAt)}</span>
+              {message.editedAt && (
+                <span className="opacity-60">· изм.</span>
+              )}
             </div>
           </div>
           )}
 
-          {showActions && !isVideoCircle && (
-            <div className={`absolute top-0 ${isOwn ? '-left-20' : '-right-20'} flex gap-1 opacity-0 group-hover/bubble:opacity-100 transition-opacity`}>
+          {/* Hover action buttons */}
+          {showActions && !isVideoCircle && !editMode && (
+            <div className={`absolute top-0 ${isOwn ? '-left-24' : '-right-24'} flex gap-1 opacity-0 group-hover/bubble:opacity-100 transition-opacity`}>
+              {onReply && (
+                <button
+                  onClick={handleReply}
+                  className="p-1.5 bg-aura-elevated rounded-full hover:bg-aura-primary text-aura-text-dim hover:text-white transition-colors"
+                  title="Ответить"
+                >
+                  <Reply className="w-3.5 h-3.5" />
+                </button>
+              )}
               <button
                 onClick={() => setShowReactions(!showReactions)}
                 className="p-1.5 bg-aura-elevated rounded-full hover:bg-aura-primary text-aura-text-dim hover:text-white transition-colors"
@@ -354,6 +446,15 @@ export function Message({ message, isOwn, isFirstInGroup, showSender, isExplodin
           </div>
         )}
       </div>
+
+      {/* Context menu */}
+      {contextMenu && menuItems.length > 0 && (
+        <ContextMenu
+          items={menuItems}
+          position={contextMenu}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </div>
   );
 }

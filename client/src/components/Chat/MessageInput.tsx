@@ -5,6 +5,7 @@ import { useT } from '../../contexts/LanguageContext';
 import { api } from '../../services/api';
 import { SuggestReply } from '../AI/SuggestReply';
 import { Message } from '../../types';
+import { playMessageSentSound } from '../../utils/sounds';
 
 export interface ReplyTarget {
   id: string;
@@ -15,12 +16,24 @@ export interface ReplyTarget {
 
 const getEchoOptions = (offLabel: string): { label: string; value: number | null }[] => [
   { label: offLabel, value: null },
+  { label: '1s', value: 1 },
   { label: '5s', value: 5 },
+  { label: '10s', value: 10 },
   { label: '30s', value: 30 },
   { label: '1m', value: 60 },
+  { label: '2m', value: 120 },
   { label: '5m', value: 300 },
+  { label: '10m', value: 600 },
+  { label: '30m', value: 1800 },
   { label: '1h', value: 3600 },
-  { label: '24h', value: 86400 },
+  { label: '3h', value: 10800 },
+  { label: '6h', value: 21600 },
+  { label: '12h', value: 43200 },
+  { label: '1d', value: 86400 },
+  { label: '3d', value: 259200 },
+  { label: '1w', value: 604800 },
+  { label: '2w', value: 1209600 },
+  { label: '1mo', value: 2592000 },
 ];
 
 const QUICK_EMOJIS = ['😀', '😂', '😍', '🥰', '😎', '🤔', '👀', '👍', '👎', '🔥', '❤️', '💔', '😭', '😡', '🎉', '✨', '💯', '🙏', '👋', '🚀'];
@@ -48,7 +61,7 @@ export function MessageInput({ chatId, replyTo, onClearReply }: MessageInputProp
   // Voice recording state
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
-  const [recordingCancelled, setRecordingCancelled] = useState(false);
+  const recordingCancelledRef = useRef(false);
 
   // Video circle state
   const [isVideoRecording, setIsVideoRecording] = useState(false);
@@ -113,6 +126,7 @@ export function MessageInput({ chatId, replyTo, onClearReply }: MessageInputProp
       echoDuration: echoDuration ?? undefined,
       replyToId: replyTo?.id,
     });
+    playMessageSentSound();
     setText('');
     setShowEmoji(false);
     onClearReply?.();
@@ -177,7 +191,10 @@ export function MessageInput({ chatId, replyTo, onClearReply }: MessageInputProp
 
       recorder.onstop = async () => {
         stream.getTracks().forEach(t => t.stop());
-        if (recordingCancelled) return;
+        if (recordingCancelledRef.current) {
+          recordingCancelledRef.current = false;
+          return;
+        }
         const blob = new Blob(audioChunksRef.current, { type: mimeType });
         const ext = mimeType.includes('webm') ? 'webm' : 'ogg';
         const file = new File([blob], `voice_${Date.now()}.${ext}`, { type: mimeType });
@@ -187,16 +204,16 @@ export function MessageInput({ chatId, replyTo, onClearReply }: MessageInputProp
       recorder.start(100);
       mediaRecorderRef.current = recorder;
       setIsRecording(true);
-      setRecordingCancelled(false);
+      recordingCancelledRef.current = false;
       setRecordingTime(0);
       recordingTimerRef.current = setInterval(() => setRecordingTime(t => t + 1), 1000);
     } catch {
       // Microphone access denied
     }
-  }, [recordingCancelled]);
+  }, []);
 
   function stopVoiceRecording(cancel = false) {
-    if (cancel) setRecordingCancelled(true);
+    if (cancel) recordingCancelledRef.current = true;
     if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
     mediaRecorderRef.current?.stop();
     setIsRecording(false);
