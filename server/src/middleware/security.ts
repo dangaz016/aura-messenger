@@ -149,7 +149,7 @@ export function generateCaptcha(ip = ''): { id: string; question: string } {
     a = Math.floor(Math.random() * 50) + 30;
     b = Math.floor(Math.random() * 20) + 5;
     answer = a - b;
-    question = `${a} − ${b}`;
+    question = `${a} - ${b}`;
   }
   const id = uuidv4();
   captchas.set(id, { answer, expires: Date.now() + 10 * 60 * 1000, used: false, ip });

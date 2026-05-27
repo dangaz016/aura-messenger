@@ -11,6 +11,7 @@ export function useCall() {
   const [remoteUserName, setRemoteUserName] = useState<string | null>(null);
   const [isIncoming, setIsIncoming] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [isVideoEnabled, setIsVideoEnabled] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
@@ -77,27 +78,37 @@ export function useCall() {
   }, [remoteUserId, startTimer]);
 
   // Get user media
-  const getUserMedia = useCallback(async () => {
+  const getUserMedia = useCallback(async (videoEnabled: boolean = false) => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      const constraints: MediaStreamConstraints = {
+        audio: true,
+        video: videoEnabled ? {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30 }
+        } : false
+      };
+      
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       localStreamRef.current = stream;
       return stream;
     } catch (err) {
-      console.error('Error accessing microphone:', err);
+      console.error('Error accessing media devices:', err);
       throw err;
     }
   }, []);
 
   // Start outgoing call
   const startCall = useCallback(
-    async (userId: string, userName: string) => {
+    async (userId: string, userName: string, videoCall: boolean = false) => {
       try {
         setRemoteUserId(userId);
         setRemoteUserName(userName);
         setIsIncoming(false);
         setCallState('calling');
+        setIsVideoEnabled(videoCall);
 
-        await getUserMedia();
+        await getUserMedia(videoCall);
         const pc = await createPeerConnection();
 
         const offer = await pc.createOffer();
@@ -107,6 +118,7 @@ export function useCall() {
           targetUserId: userId,
           offer: offer,
           callerName: userName,
+          hasVideo: videoCall,
         });
       } catch (err) {
         console.error('Error starting call:', err);
@@ -117,12 +129,13 @@ export function useCall() {
   );
 
   // Accept incoming call
-  const acceptCall = useCallback(async () => {
+  const acceptCall = useCallback(async (videoCall: boolean = false) => {
     if (!remoteUserId || !peerConnectionRef.current) return;
 
     try {
-      await getUserMedia();
+      await getUserMedia(videoCall);
       const pc = peerConnectionRef.current;
+      setIsVideoEnabled(videoCall);
 
       // Add local tracks
       if (localStreamRef.current) {
@@ -137,6 +150,7 @@ export function useCall() {
       socketService.socket?.emit('call:answer', {
         targetUserId: remoteUserId,
         answer: answer,
+        hasVideo: videoCall,
       });
 
       setCallState('connected');
@@ -175,6 +189,49 @@ export function useCall() {
     }
   }, []);
 
+  // Toggle video
+  const toggleVideo = useCallback(async () => {
+    if (!localStreamRef.current) return;
+    
+    const videoTrack = localStreamRef.current.getVideoTracks()[0];
+    if (videoTrack) {
+      videoTrack.enabled = !videoTrack.enabled;
+      setIsVideoEnabled(!videoTrack.enabled);
+      
+      // Notify remote peer about video state change
+      if (peerConnectionRef.current && remoteUserId) {
+        socketService.socket?.emit('call:video-state', {
+          targetUserId: remoteUserId,
+          videoEnabled: !videoTrack.enabled
+        });
+      }
+    } else if (!isVideoEnabled) {
+      // Need to add video track
+      try {
+        const newStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            frameRate: { ideal: 30 }
+          }
+        });
+        
+        const videoTrack = newStream.getVideoTracks()[0];
+        if (peerConnectionRef.current && videoTrack) {
+          peerConnectionRef.current.addTrack(videoTrack, localStreamRef.current!);
+          setIsVideoEnabled(true);
+          
+          socketService.socket?.emit('call:video-state', {
+            targetUserId: remoteUserId,
+            videoEnabled: true
+          });
+        }
+      } catch (err) {
+        console.error('Error accessing camera:', err);
+      }
+    }
+  }, [isVideoEnabled, remoteUserId]);
+
   // Cleanup
   const cleanup = useCallback(() => {
     stopTimer();
@@ -205,11 +262,12 @@ export function useCall() {
     if (!socket) return;
 
     // Incoming call
-    const onOffer = async (data: { callerId: string; callerName: string; offer: RTCSessionDescriptionInit }) => {
+    const onOffer = async (data: { callerId: string; callerName: string; offer: RTCSessionDescriptionInit; hasVideo?: boolean }) => {
       setRemoteUserId(data.callerId);
       setRemoteUserName(data.callerName);
       setIsIncoming(true);
       setCallState('ringing');
+      setIsVideoEnabled(data.hasVideo || false);
 
       const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
       peerConnectionRef.current = pc;
@@ -243,9 +301,12 @@ export function useCall() {
     };
 
     // Call answered
-    const onAnswer = async (data: { callerId: string; answer: RTCSessionDescriptionInit }) => {
+    const onAnswer = async (data: { callerId: string; answer: RTCSessionDescriptionInit; hasVideo?: boolean }) => {
       if (peerConnectionRef.current) {
         await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
+      }
+      if (data.hasVideo !== undefined) {
+        setIsVideoEnabled(data.hasVideo);
       }
     };
 
@@ -254,6 +315,13 @@ export function useCall() {
       if (peerConnectionRef.current) {
         await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
       }
+    };
+
+    // Video state change
+    const onVideoState = async (data: { callerId: string; videoEnabled: boolean }) => {
+      // Handle remote video state change
+      console.log('Remote video state changed:', data.videoEnabled);
+      // Here you could update UI to show/hide remote video
     };
 
     // Call rejected
@@ -269,6 +337,7 @@ export function useCall() {
     socket.on('call:offer', onOffer);
     socket.on('call:answer', onAnswer);
     socket.on('call:ice-candidate', onIceCandidate);
+    socket.on('call:video-state', onVideoState);
     socket.on('call:rejected', onRejected);
     socket.on('call:ended', onEnded);
 
@@ -276,6 +345,7 @@ export function useCall() {
       socket.off('call:offer', onOffer);
       socket.off('call:answer', onAnswer);
       socket.off('call:ice-candidate', onIceCandidate);
+      socket.off('call:video-state', onVideoState);
       socket.off('call:rejected', onRejected);
       socket.off('call:ended', onEnded);
     };
@@ -287,11 +357,13 @@ export function useCall() {
     remoteUserName,
     isIncoming,
     isMuted,
+    isVideoEnabled,
     callDuration,
     startCall,
     acceptCall,
     rejectCall,
     endCall,
     toggleMute,
+    toggleVideo,
   };
 }

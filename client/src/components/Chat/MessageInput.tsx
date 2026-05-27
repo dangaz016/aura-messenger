@@ -196,7 +196,9 @@ export function MessageInput({ chatId, replyTo, onClearReply }: MessageInputProp
 
   const startVoiceRecording = useCallback(async () => {
     try {
+      console.log('Requesting microphone access...');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log('Microphone access granted:', stream);
       streamRef.current = stream;
       const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg';
       const recorder = new MediaRecorder(stream, { mimeType });
@@ -207,14 +209,18 @@ export function MessageInput({ chatId, replyTo, onClearReply }: MessageInputProp
       };
 
       recorder.onstop = async () => {
+        console.log('Stopping audio tracks...');
         stream.getTracks().forEach(t => t.stop());
         if (recordingCancelledRef.current) {
+          console.log('Recording cancelled');
           recordingCancelledRef.current = false;
           return;
         }
+        console.log('Creating audio blob:', audioChunksRef.current.length, 'chunks');
         const blob = new Blob(audioChunksRef.current, { type: mimeType });
         const ext = mimeType.includes('webm') ? 'webm' : 'ogg';
         const file = new File([blob], `voice_${Date.now()}.${ext}`, { type: mimeType });
+        console.log('Uploading voice message:', file.name, file.size, 'bytes');
         await handleUploadAndSend(file, 'voice');
       };
 
@@ -224,12 +230,14 @@ export function MessageInput({ chatId, replyTo, onClearReply }: MessageInputProp
       recordingCancelledRef.current = false;
       setRecordingTime(0);
       recordingTimerRef.current = setInterval(() => setRecordingTime(t => t + 1), 1000);
-    } catch {
+    } catch (err) {
+      console.error('Microphone access error:', err);
       // Microphone access denied
     }
   }, []);
 
   function stopVoiceRecording(cancel = false) {
+    console.log('Stopping voice recording, cancel:', cancel);
     if (cancel) recordingCancelledRef.current = true;
     if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
     mediaRecorderRef.current?.stop();

@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '../db/database';
 import { authenticateToken } from '../middleware/auth';
 import { uploadLimiter } from '../middleware/security';
+import { uploadFileToS3 } from '../services/storage';
 
 const router = Router();
 
@@ -138,6 +139,47 @@ router.get('/:id', (req, res) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
   fs.createReadStream(filePath).pipe(res);
+});
+
+// POST /api/files/backup — backup all media files
+router.post('/backup', authenticateToken, async (req, res) => {
+  try {
+    const db = getDb();
+    const files = db.prepare('SELECT * FROM files').all() as unknown as { id: string; filename: string }[];
+    
+    for (const file of files) {
+      const filePath = path.join(UPLOAD_DIR, file.filename);
+      if (fs.existsSync(filePath)) {
+        const s3Key = `media/${file.id}/${file.filename}`;
+        await uploadFileToS3(filePath, s3Key);
+      }
+    }
+    
+    res.json({ success: true, message: 'Media backup completed' });
+  } catch (err: any) {
+    console.error('Media backup failed:', err.message);
+    res.status(500).json({ error: 'Media backup failed' });
+  }
+});
+
+// GET /api/files/check-integrity — check integrity of media files
+router.get('/check-integrity', authenticateToken, async (req, res) => {
+  try {
+    const db = getDb();
+    const files = db.prepare('SELECT * FROM files').all() as unknown as { id: string; filename: string }[];
+    
+    const results = [];
+    for (const file of files) {
+      const filePath = path.join(UPLOAD_DIR, file.filename);
+      const exists = fs.existsSync(filePath);
+      results.push({ id: file.id, filename: file.filename, exists });
+    }
+    
+    res.json({ results });
+  } catch (err: any) {
+    console.error('Media integrity check failed:', err.message);
+    res.status(500).json({ error: 'Media integrity check failed' });
+  }
 });
 
 export default router;

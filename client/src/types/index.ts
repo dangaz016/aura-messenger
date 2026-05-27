@@ -14,6 +14,8 @@ export interface PrivacySettings {
   readReceipts: boolean;
   forwardFrom: boolean;
   groups: PrivacyLevel;
+  website: PrivacyLevel;
+  location: PrivacyLevel;
 }
 
 export interface User {
@@ -46,6 +48,10 @@ export interface User {
   // Linked accounts
   hasTelegram?: boolean;
   telegram_username?: string | null;
+  // Social fields
+  website?: string | null;
+  location?: string | null;
+  socialLinks?: Record<string, string> | null;
   // Privacy settings (only for own profile)
   privacy?: PrivacySettings;
 }

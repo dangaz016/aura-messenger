@@ -9,6 +9,10 @@ services:
     buildCommand: npm install && npm run build
     startCommand: npm start
     plan: free
+    disk:
+      name: aura-data
+      mountPath: /data
+      sizeGB: 1
     envVars:
       - key: NODE_VERSION
         value: "22.11.0"
@@ -17,4 +21,6 @@ services:
       - key: CORS_ORIGINS
         sync: false   # set this manually in Render dashboard to your Netlify URL
       - key: PORT
-        value: "10000"
+        value: "3000"
+      - key: DATA_DIR
+        value: "/data"

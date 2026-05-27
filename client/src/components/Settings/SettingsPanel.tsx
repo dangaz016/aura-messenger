@@ -12,6 +12,7 @@ import { Avatar } from '../Common/Avatar';
 import { api } from '../../services/api';
 import { AuraMode } from '../../types';
 import { requestNotificationPermission } from '../../utils/notifications';
+import { LanguageToggle } from '../Common/LanguageToggle';
 
 const COLORS = [
   '#7C3AED', '#A78BFA', '#EC4899', '#F472B6',
@@ -52,6 +53,9 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   // Birthday: stored as "MM-DD"
   const [bdMonth, setBdMonth] = useState(user?.birthday?.split('-')[0] || '');
   const [bdDay, setBdDay] = useState(user?.birthday?.split('-')[1] || '');
+  const [website, setWebsite] = useState(user?.website || '');
+  const [location, setLocation] = useState(user?.location || '');
+  const [socialLinks, setSocialLinks] = useState<Record<string, string>>(user?.socialLinks || {});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -75,7 +79,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     setSaving(true);
     try {
       const birthday = bdMonth && bdDay ? `${bdMonth}-${bdDay}` : '';
-      const updated = await api.updateProfile({ displayName, moodEmoji, moodText, avatarColor: color, bio, birthday });
+      const updated = await api.updateProfile({ displayName, moodEmoji, moodText, avatarColor: color, bio, birthday, website, location, socialLinks });
       updateUser(updated);
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
@@ -229,6 +233,41 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
               </div>
             </div>
 
+            {/* Website */}
+            <div className="mt-4 flex items-start gap-3 p-3 rounded-xl bg-aura-surface2 border border-aura-border">
+              <svg className="w-5 h-5 text-aura-text-muted flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1.41 15.71L6.5 12.59V11h10.99v1.59l-4.09 3.12-1.09-4.04-3.3 2.58zM13.5 6.31c-.28 0-.5.22-.5.5s.22.5.5.5.5-.22.5-.5-.22-.5-.5-.5zm-3 0c-.28 0-.5.22-.5.5s.22.5.5.5.5-.22.5-.5-.22-.5-.5-.5z"/>
+              </svg>
+              <div className="flex-1">
+                <Label>{lang === 'ru' ? 'Веб-сайт' : 'Website'}</Label>
+                <input
+                  type="url"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  placeholder="https://example.com"
+                  className="input-aura w-full"
+                />
+              </div>
+            </div>
+
+            {/* Location */}
+            <div className="mt-4 flex items-start gap-3 p-3 rounded-xl bg-aura-surface2 border border-aura-border">
+              <svg className="w-5 h-5 text-aura-text-muted flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+              </svg>
+              <div className="flex-1">
+                <Label>{lang === 'ru' ? 'Местоположение' : 'Location'}</Label>
+                <input
+                  type="text"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder={lang === 'ru' ? 'Город, страна' : 'City, Country'}
+                  className="input-aura w-full"
+                  maxLength={60}
+                />
+              </div>
+            </div>
+
             {/* Birthday */}
             <div className="mt-4 flex items-start gap-3 p-3 rounded-xl bg-aura-surface2 border border-aura-border">
               <Cake className="w-5 h-5 text-pink-400 flex-shrink-0 mt-0.5" />
@@ -270,6 +309,29 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     🎂 {MONTHS[parseInt(bdMonth) - 1]} {parseInt(bdDay)}
                   </p>
                 )}
+              </div>
+            </div>
+
+            {/* Social Links */}
+            <div className="mt-4 flex items-start gap-3 p-3 rounded-xl bg-aura-surface2 border border-aura-border">
+              <svg className="w-5 h-5 text-aura-text-muted flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z"/>
+              </svg>
+              <div className="flex-1">
+                <Label>{lang === 'ru' ? 'Социальные сети' : 'Social Links'}</Label>
+                <div className="space-y-2">
+                  {['twitter', 'instagram', 'github', 'linkedin', 'youtube'].map(platform => (
+                    <div key={platform} className="flex items-center gap-2">
+                      <input
+                        type="url"
+                        value={socialLinks[platform] || ''}
+                        onChange={(e) => setSocialLinks({...socialLinks, [platform]: e.target.value})}
+                        placeholder={platform === 'twitter' ? 'https://twitter.com/username' : platform === 'instagram' ? 'https://instagram.com/username' : platform === 'github' ? 'https://github.com/username' : platform === 'linkedin' ? 'https://linkedin.com/in/username' : 'https://youtube.com/channel/...'}
+                        className="input-aura flex-1"
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -481,6 +543,11 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 </div>
               )}
             </div>
+          </Section>
+
+          {/* Language Settings */}
+          <Section title={t('settings.section_language')} icon={<Sparkles className="w-4 h-4" />}>
+            <LanguageToggle />
           </Section>
 
           {/* Aura Prime */}

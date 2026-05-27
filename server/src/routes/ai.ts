@@ -3,7 +3,7 @@ import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
 
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const GROQ_API_KEY = process.env.GROQ_API_KEY || 'default_fallback_key';
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 // Updated models: llama-3.3-70b-versatile → llama-3.1-70b-versatile or mixtral-8x7b-32768
 const MODEL = process.env.AI_MODEL || 'llama-3.1-70b-versatile';
@@ -14,7 +14,7 @@ interface ChatMessage {
 }
 
 async function callGroq(messages: ChatMessage[], maxTokens = 500): Promise<string> {
-  if (!GROQ_API_KEY) {
+  if (!GROQ_API_KEY || GROQ_API_KEY === 'default_fallback_key') {
     console.error('[AI] GROQ_API_KEY not configured in environment');
     throw new Error('AI_NOT_CONFIGURED');
   }

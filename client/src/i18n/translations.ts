@@ -34,6 +34,7 @@ export const translations = {
   // ===== SIDEBAR =====
   'sidebar.chats': { en: 'Chats', ru: 'Чаты' },
   'sidebar.spaces': { en: 'Spaces', ru: 'Пространства' },
+  'sidebar.contacts': { en: 'Contacts', ru: 'Контакты' },
   'sidebar.search_chats': { en: 'Search chats...', ru: 'Поиск чатов...' },
   'sidebar.search_spaces': { en: 'Search spaces...', ru: 'Поиск пространств...' },
   'sidebar.no_chats': { en: 'No chats yet', ru: 'Чатов пока нет' },
@@ -172,7 +173,8 @@ export const translations = {
   'settings.save': { en: 'Save', ru: 'Сохранить' },
   'settings.saving': { en: 'Saving...', ru: 'Сохраняем...' },
   'settings.saved': { en: '✓ Saved', ru: '✓ Сохранено' },
-
+  'settings.section_language': { en: 'Language', ru: 'Язык' },
+  
   // ===== MOOD PRESETS =====
   'mood.available': { en: 'Available', ru: 'Доступен' },
   'mood.thinking': { en: 'Thinking', ru: 'Думаю' },

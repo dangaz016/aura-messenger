@@ -35,6 +35,10 @@ export interface UserRow {
   prime_theme: string;
   prime_badge: string;
   prime_animated_avatar: number;
+  // Social fields
+  website: string | null;
+  location: string | null;
+  social_links: string | null;
   // Privacy
   privacy_last_seen: string;
   privacy_avatar: string;
@@ -45,6 +49,8 @@ export interface UserRow {
   privacy_read_receipts: number;
   privacy_forward_from: number;
   privacy_groups: string;
+  privacy_website: string;
+  privacy_location: string;
 }
 
 export interface StoryRow {
@@ -85,6 +91,10 @@ export interface PublicUser {
   primeBadge: string;
   primeAnimatedAvatar: boolean;
   hasTelegram: boolean;
+  // Social fields
+  website?: string | null;
+  location?: string | null;
+  socialLinks?: Record<string, string> | null;
   // Privacy settings (only returned for own profile)
   privacy?: {
     lastSeen: string;
@@ -96,6 +106,8 @@ export interface PublicUser {
     readReceipts: boolean;
     forwardFrom: boolean;
     groups: string;
+    website: string;
+    location: string;
   };
 }
 
@@ -174,6 +186,9 @@ export function rowToPublicUser(row: UserRow, includePrivacy = false): PublicUse
     primeBadge: row.prime_badge || 'crown',
     primeAnimatedAvatar: row.prime_animated_avatar === 1,
     hasTelegram: !!row.telegram_id,
+    website: row.website ?? null,
+    location: row.location ?? null,
+    socialLinks: row.social_links ? JSON.parse(row.social_links) : null,
   };
   if (includePrivacy) {
     base.privacy = {
@@ -186,6 +201,8 @@ export function rowToPublicUser(row: UserRow, includePrivacy = false): PublicUse
       readReceipts: row.privacy_read_receipts !== 0,
       forwardFrom: row.privacy_forward_from !== 0,
       groups: row.privacy_groups || 'everyone',
+      website: row.privacy_website || 'everyone',
+      location: row.privacy_location || 'everyone',
     };
     base.phone = row.phone ?? null;
   }
@@ -214,6 +231,8 @@ export function rowToFilteredUser(row: UserRow, viewerIsContact: boolean): Publi
   if (!visible(row.privacy_birthday)) base.birthday = null;
   if (visible(row.privacy_phone)) base.phone = row.phone ?? null;
   if (!visible(row.privacy_avatar)) base.avatarUrl = null;
+  if (!visible(row.privacy_website)) base.website = null;
+  if (!visible(row.privacy_location)) base.location = null;
 
   return base;
 }

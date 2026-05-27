@@ -1,6 +1,8 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
+import { backupDatabase, restoreFromBackup, backupMediaFiles } from './backup';
+import { restoreFromCloud } from '../services/storage';
 
 function resolveDataDir(): string {
   const candidates = [
@@ -28,17 +30,161 @@ function resolveDataDir(): string {
 
 const DATA_DIR = resolveDataDir();
 const DB_PATH = path.join(DATA_DIR, 'aura.db');
+const BACKUP_DIR = path.join(DATA_DIR, 'backups');
 
 let dbInstance: Database.Database | null = null;
+let backupInterval: NodeJS.Timeout;
+
+// Создать директорию для резервных копий
+if (!fs.existsSync(BACKUP_DIR)) {
+  fs.mkdirSync(BACKUP_DIR, { recursive: true });
+}
+
+// Создать директорию для медиафайлов
+const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
+if (!fs.existsSync(UPLOAD_DIR)) {
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+}
 
 export function getDb(): Database.Database {
   if (!dbInstance) {
-    dbInstance = new Database(DB_PATH);
-    dbInstance.exec('PRAGMA journal_mode = WAL');
-    dbInstance.exec('PRAGMA foreign_keys = ON');
-    initializeSchema(dbInstance);
+    initializeDatabase();
+  }
+  if (!dbInstance) {
+    throw new Error('Failed to initialize database');
   }
   return dbInstance;
+}
+
+async function initializeDatabase() {
+  // Проверка целостности базы
+  if (fs.existsSync(DB_PATH)) {
+    try {
+      // Попробовать открыть существующую базу
+      const db = new Database(DB_PATH);
+      db.pragma('integrity_check');
+      db.close();
+    } catch (err) {
+      console.error('[DB] Database integrity check failed:', err);
+      // Попробовать восстановить из облачной резервной копии
+      try {
+        const backups = fs.readdirSync(BACKUP_DIR)
+          .filter(f => f.startsWith('aura-backup-') && f.endsWith('.db.gz'))
+          .sort()
+          .reverse();
+        
+        if (backups.length > 0) {
+          const latestBackup = backups[0];
+          const timestamp = latestBackup.replace('aura-backup-', '').replace('.db.gz', '');
+          await restoreFromCloud(DB_PATH, timestamp);
+        } else {
+          throw new Error('No cloud backups available for restoration');
+        }
+      } catch (cloudRestoreErr) {
+        console.error('[DB] Cloud restore failed:', cloudRestoreErr);
+        // Попробовать восстановить из локальной резервной копии
+        try {
+          await restoreFromBackup(DB_PATH, BACKUP_DIR);
+        } catch (localRestoreErr) {
+          console.error('[DB] Local backup restore failed:', localRestoreErr);
+          throw new Error('Database corrupted and all restore attempts failed');
+        }
+      }
+    }
+  }
+  
+  // Инициализировать базу
+  dbInstance = new Database(DB_PATH);
+  dbInstance.exec('PRAGMA journal_mode = WAL');
+  dbInstance.exec('PRAGMA synchronous = NORMAL');
+  dbInstance.exec('PRAGMA foreign_keys = ON');
+  dbInstance.exec('PRAGMA wal_autocheckpoint = 1000'); // Чекпоинт каждые 1000 страниц
+  dbInstance.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+  
+  // Инициализировать схему
+  initializeSchema(dbInstance);
+  
+  // Начать регулярное резервное копирование
+  startBackupProcess(DB_PATH, BACKUP_DIR);
+  
+  // Начать регулярное резервное копирование медиафайлов
+  startMediaBackupProcess(UPLOAD_DIR, BACKUP_DIR);
+  
+  // Обработчики для graceful shutdown
+  process.on('SIGINT', () => shutdownDatabase());
+  process.on('SIGTERM', () => shutdownDatabase());
+}
+
+function startBackupProcess(dbPath: string, backupDir: string) {
+  // Первое резервное копирование сразу
+  backupDatabase(dbPath, backupDir).catch((err: any) => {
+    console.error('[DB] Initial backup failed:', err);
+  });
+  
+  // Регулярное резервное копирование
+  backupInterval = setInterval(() => {
+    backupDatabase(dbPath, backupDir).catch((err: any) => {
+      console.error('[DB] Scheduled backup failed:', err);
+    });
+  }, 60 * 60 * 1000); // Каждый час
+}
+
+function startMediaBackupProcess(uploadDir: string, backupDir: string) {
+  // Первое резервное копирование медиафайлов сразу
+  backupMediaFiles(uploadDir, backupDir).catch((err: any) => {
+    console.error('[Media] Initial backup failed:', err);
+  });
+  
+  // Регулярное резервное копирование медиафайлов
+  const mediaBackupInterval = setInterval(() => {
+    backupMediaFiles(uploadDir, backupDir).catch((err: any) => {
+      console.error('[Media] Scheduled backup failed:', err);
+    });
+  }, 24 * 60 * 60 * 1000); // Каждые 24 часа
+}
+
+function shutdownDatabase() {
+  if (dbInstance) {
+    console.log('[DB] Shutting down gracefully...');
+    
+    // Принудительный чекпоинт WAL
+    try {
+      dbInstance.pragma('wal_checkpoint(TRUNCATE)');
+    } catch (err: any) {
+      console.error('[DB] WAL checkpoint failed during shutdown:', err);
+    }
+    
+    // Окончательное резервное копирование
+    Promise.all([
+      backupDatabase(DB_PATH, BACKUP_DIR),
+      backupMediaFiles(UPLOAD_DIR, BACKUP_DIR)
+    ])
+      .then(() => {
+        dbInstance?.close();
+        console.log('[DB] Database closed and final backups created');
+        process.exit(0);
+      })
+      .catch((err: any) => {
+        console.error('[DB] Final backup failed:', err);
+        dbInstance?.close();
+        process.exit(1);
+      });
+    
+    if (backupInterval) clearInterval(backupInterval);
+  }
+}
+
+export function closeDb() {
+  if (dbInstance) {
+    try {
+      dbInstance.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+    } catch (err) {
+      console.error('[DB] WAL checkpoint failed:', err);
+    }
+    dbInstance.close();
+    dbInstance = null;
+    if (backupInterval) clearInterval(backupInterval);
+  }
 }
 
 function initializeSchema(db: Database.Database) {
@@ -147,6 +293,15 @@ function initializeSchema(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_stories_author ON stories(author_id);
     CREATE INDEX IF NOT EXISTS idx_stories_expires ON stories(expires_at);
     CREATE INDEX IF NOT EXISTS idx_message_reads ON message_reads(message_id);
+  `);
+
+  // Invites table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS invites (
+      id TEXT PRIMARY KEY,
+      created_by TEXT NOT NULL REFERENCES users(id),
+      created_at INTEGER DEFAULT (unixepoch())
+    );
   `);
 
   // Channels and new features tables
@@ -264,12 +419,6 @@ function initializeSchema(db: Database.Database) {
   `);
 }
 
-export function closeDb() {
-  if (dbInstance) {
-    dbInstance.close();
-    dbInstance = null;
-  }
-}
 
 // Log the resolved data directory for debugging
 console.log(`[DB] Data directory: ${DATA_DIR}`);

@@ -104,6 +104,8 @@ export function PrivacySettingsPanel() {
     readReceipts: true,
     forwardFrom: true,
     groups: 'everyone' as PrivacyLevel,
+    website: 'everyone' as PrivacyLevel,
+    location: 'everyone' as PrivacyLevel,
   };
 
   async function save(patch: Partial<PrivacySettings>, fieldName: string) {
@@ -185,6 +187,22 @@ export function PrivacySettingsPanel() {
             onChange={changeLevel('groups')}
             saving={saving}
             icon={<Users className="w-4 h-4" />}
+          />
+          <PrivacyRow
+            label="Веб-сайт"
+            description="Ссылка на веб-сайт в профиле"
+            value={privacy.website}
+            onChange={changeLevel('website')}
+            saving={saving}
+            icon={<svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1.41 15.71L6.5 12.59V11h10.99v1.59l-4.09 3.12-1.09-4.04-3.3 2.58zM13.5 6.31c-.28 0-.5.22-.5.5s.22.5.5.5.5-.22.5-.5-.22-.5-.5-.5zm-3 0c-.28 0-.5.22-.5.5s.22.5.5.5.5-.22.5-.5-.22-.5-.5-.5z"/></svg>}
+          />
+          <PrivacyRow
+            label="Местоположение"
+            description="Местоположение в профиле"
+            value={privacy.location}
+            onChange={changeLevel('location')}
+            saving={saving}
+            icon={<svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>}
           />
         </div>
       </div>

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { getDb } from '../db/database';
 import { authenticateToken } from '../middleware/auth';
 import { UserRow, rowToPublicUser, rowToFilteredUser, AuraMode, PrivacyLevel } from '../types';
+import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();
 
@@ -10,16 +11,16 @@ router.use(authenticateToken);
 router.get('/search', (req, res) => {
   const q = (req.query.q as string || '').trim();
   if (q.length < 1) return res.json({ users: [] });
-
+  
   const db = getDb();
   const users = db.prepare(`
     SELECT * FROM users
     WHERE id != ?
-      AND (username LIKE ? OR display_name LIKE ?)
+      AND (username LIKE ? OR display_name LIKE ? OR phone LIKE ?)
     ORDER BY username
     LIMIT 30
-  `).all(req.user!.userId, `%${q}%`, `%${q}%`) as unknown as UserRow[];
-
+  `).all(req.user!.userId, `%${q}%`, `%${q}%`, `%${q}%`) as unknown as UserRow[];
+  
   res.json({ users: users.map((u) => rowToPublicUser(u)) });
 });
 
@@ -32,7 +33,7 @@ router.get('/me', (req, res) => {
 });
 
 router.patch('/profile', (req, res) => {
-  const { displayName, moodEmoji, moodText, auraMode, avatarColor, publicKey, avatarUrl, birthday } = req.body;
+  const { displayName, moodEmoji, moodText, auraMode, avatarColor, publicKey, avatarUrl, birthday, website, location, socialLinks } = req.body;
   const db = getDb();
 
   const validModes: AuraMode[] = ['available', 'ghost', 'dnd'];
@@ -58,6 +59,9 @@ router.patch('/profile', (req, res) => {
     updates.push('birthday = ?');
     values.push(birthday || null);
   }
+  if (website !== undefined) { updates.push('website = ?'); values.push(website || null); }
+  if (location !== undefined) { updates.push('location = ?'); values.push(location || null); }
+  if (socialLinks !== undefined) { updates.push('social_links = ?'); values.push(socialLinks ? JSON.stringify(socialLinks) : null); }
 
   if (updates.length === 0) {
     return res.status(400).json({ error: 'No fields to update' });
@@ -86,6 +90,8 @@ router.patch('/privacy', (req, res) => {
     phone: 'privacy_phone',
     online: 'privacy_online',
     groups: 'privacy_groups',
+    website: 'privacy_website',
+    location: 'privacy_location',
   };
 
   const body = req.body as Record<string, unknown>;
@@ -217,6 +223,58 @@ router.get('/:id', (req, res) => {
   const isContact = !!sharedChat;
 
   res.json({ user: rowToFilteredUser(user, isContact) });
+});
+
+// POST /api/users/contacts/sync — sync device contacts
+router.post('/contacts/sync', (req, res) => {
+  const { contacts } = req.body;
+  if (!contacts || !Array.isArray(contacts)) {
+    return res.status(400).json({ error: 'Contacts array is required' });
+  }
+  
+  const db = getDb();
+  const userId = req.user!.userId;
+  
+  // Process contacts and find matches
+  const placeholders = contacts.map(() => '?').join(',');
+  const matchedUsers = db.prepare(`
+    SELECT id, username, phone, display_name, avatar_url
+    FROM users
+    WHERE (phone IN (${placeholders}) OR username IN (${placeholders}))
+      AND id != ?
+  `).all(...contacts, ...contacts, userId) as unknown as UserRow[];
+  
+  res.json({ users: matchedUsers.map((u) => rowToPublicUser(u)) });
+});
+
+// POST /api/users/invites — generate invite link
+router.post('/invites', (req, res) => {
+  const userId = req.user!.userId;
+  const inviteCode = uuidv4();
+  
+  const db = getDb();
+  db.prepare(`
+    INSERT INTO invites (id, created_by, created_at)
+    VALUES (?, ?, ?)
+  `).run(inviteCode, userId, Math.floor(Date.now() / 1000));
+  
+  const inviteLink = `${process.env.PUBLIC_URL}/invite/${inviteCode}`;
+  res.json({ inviteLink });
+});
+
+// GET /api/users/invites — get user's invites
+router.get('/invites', (req, res) => {
+  const userId = req.user!.userId;
+  const db = getDb();
+  
+  const invites = db.prepare(`
+    SELECT id, created_at
+    FROM invites
+    WHERE created_by = ?
+    ORDER BY created_at DESC
+  `).all(userId);
+  
+  res.json({ invites });
 });
 
 export default router;

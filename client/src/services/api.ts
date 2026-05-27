@@ -96,6 +96,9 @@ class ApiService {
     avatarUrl: string;
     bio: string;
     birthday: string;
+    website: string;
+    location: string;
+    socialLinks: Record<string, string>;
   }>) {
     const { data } = await this.client.patch<{ user: User }>('/users/profile', updates);
     return data.user;

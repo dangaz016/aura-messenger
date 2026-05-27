@@ -8,6 +8,7 @@ import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
 import { ChatInfoPanel } from './ChatInfoPanel';
 import { formatLastSeen } from '../../utils/formatters';
+import { CallButton } from '../Call/CallButton';
 
 interface ChatWindowProps {
   onOpenSidebar?: () => void;
@@ -205,14 +206,14 @@ export function ChatWindow({ onOpenSidebar, onCloseSidebar, onStartCall }: ChatW
         <div className="flex items-center gap-0.5 flex-shrink-0">
           {activeChat.type === 'direct' && (
             <>
-              <button
-                onClick={() => onStartCall?.(activeChat.otherUser?.id || '', activeChat.name || '')}
-                className="p-2 rounded-lg hover:bg-aura-surface2 transition-colors"
-                title={t('chatwindow.voice_call')}
-              >
-                <Phone className="w-4 h-4 text-aura-text-dim hover:text-aura-primary" />
-              </button>
-              <IconBtn icon={<Video className="w-4 h-4" />} title={t('chatwindow.video_call')} />
+              <CallButton
+                userId={activeChat.otherUser?.id || ''}
+                userName={activeChat.name || ''}
+                onStartCall={(userId, userName, videoCall) => {
+                  // Handle call start logic here
+                  console.log(`Starting ${videoCall ? 'video' : 'voice'} call with ${userName}`);
+                }}
+              />
             </>
           )}
           <IconBtn icon={<MoreVertical className="w-4 h-4" />} title={t('chatwindow.more')} />

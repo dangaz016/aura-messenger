@@ -7,12 +7,13 @@ import { Avatar } from '../Common/Avatar';
 import { ChatItem } from './ChatItem';
 import { NewChatModal } from './NewChatModal';
 import { StoriesBar } from '../Stories/StoriesBar';
+import { ContactsList } from './ContactsList';
 
 interface SidebarProps {
   onOpenSettings: () => void;
   onOpenAI?: () => void;
-  view: 'chats' | 'spaces';
-  setView: (v: 'chats' | 'spaces') => void;
+  view: 'chats' | 'spaces' | 'contacts';
+  setView: (v: 'chats' | 'spaces' | 'contacts') => void;
   showMobile?: boolean;
   onCloseMobile?: () => void;
 }
@@ -109,6 +110,12 @@ export function Sidebar({ onOpenSettings, onOpenAI, view, setView, showMobile, o
             label={t('sidebar.spaces')}
             badge={totalSpaceUnread}
           />
+          <TabButton
+            active={view === 'contacts'}
+            onClick={() => setView('contacts')}
+            icon={<svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>}
+            label={t('sidebar.contacts')}
+          />
         </div>
 
         <div className="px-3 pb-3 flex gap-2">
@@ -132,7 +139,9 @@ export function Sidebar({ onOpenSettings, onOpenAI, view, setView, showMobile, o
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {filteredChats.length === 0 ? (
+          {view === 'contacts' ? (
+            <ContactsList />
+          ) : filteredChats.length === 0 ? (
             <div className="p-6 text-center text-aura-text-muted text-sm">
               {view === 'spaces' ? (
                 <>

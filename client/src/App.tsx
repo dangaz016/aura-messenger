@@ -104,7 +104,7 @@ function AppShell() {
   const [showSettings, setShowSettings] = useState(false);
   const [showAI, setShowAI] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
-  const [view, setView] = useState<'chats' | 'spaces'>('chats');
+  const [view, setView] = useState<'chats' | 'spaces' | 'contacts'>('chats');
   const [showSidebar, setShowSidebar] = useState(false);
 
   // Call management
@@ -129,7 +129,6 @@ function AppShell() {
   if (!user) {
     return (
       <>
-        <LanguageToggle floating />
         <LoginPage />
       </>
     );
@@ -167,8 +166,6 @@ function AppShell() {
               onStartCall={call.startCall}
             />
 
-            <LanguageToggle floating />
-
             {/* Admin button — only for admin users */}
             {user?.isAdmin && (
               <button
@@ -192,6 +189,7 @@ function AppShell() {
               <IncomingCallModal
                 callerName={call.remoteUserName}
                 callerId={call.remoteUserId}
+                hasVideo={call.isVideoEnabled}
                 onAccept={call.acceptCall}
                 onDecline={call.rejectCall}
               />
@@ -203,7 +201,9 @@ function AppShell() {
                 userId={call.remoteUserId}
                 duration={call.callDuration}
                 isMuted={call.isMuted}
+                isVideoEnabled={call.isVideoEnabled}
                 onMuteToggle={call.toggleMute}
+                onVideoToggle={call.toggleVideo}
                 onEndCall={call.endCall}
                 isConnected={call.callState === 'connected'}
               />

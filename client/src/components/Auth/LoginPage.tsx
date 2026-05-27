@@ -7,6 +7,7 @@ import { GoogleSignIn } from './GoogleSignIn';
 import { TelegramSignIn, TelegramIcon } from './TelegramSignIn';
 import { api } from '../../services/api';
 import { BehaviorTracker } from '../../utils/botDetection';
+import { Hcaptcha } from './Hcaptcha';
 
 // Map server error messages to translation keys
 function mapServerError(message: string): TranslationKey | null {
@@ -31,9 +32,9 @@ function SliderCaptcha({ onVerified }: SliderCaptchaProps) {
   const [failed, setFailed] = useState(false);
   const trackRef = useRef<HTMLDivElement>(null);
   const startX = useRef(0);
-
+  
   const THRESHOLD = 92; // % of track to slide
-
+  
   function onPointerDown(e: React.PointerEvent) {
     if (verified) return;
     setDragging(true);
@@ -41,7 +42,7 @@ function SliderCaptcha({ onVerified }: SliderCaptchaProps) {
     startX.current = e.clientX;
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
   }
-
+  
   function onPointerMove(e: React.PointerEvent) {
     if (!dragging || verified) return;
     const track = trackRef.current;
@@ -52,7 +53,7 @@ function SliderCaptcha({ onVerified }: SliderCaptchaProps) {
     const moved = Math.max(0, Math.min(e.clientX - startX.current, maxMove));
     setProgress((moved / maxMove) * 100);
   }
-
+  
   function onPointerUp() {
     if (!dragging || verified) return;
     setDragging(false);
@@ -65,6 +66,16 @@ function SliderCaptcha({ onVerified }: SliderCaptchaProps) {
       setTimeout(() => setFailed(false), 1000);
     }
   }
+  
+  // Reset slider when component unmounts
+  useEffect(() => {
+    return () => {
+      setProgress(0);
+      setDragging(false);
+      setVerified(false);
+      setFailed(false);
+    };
+  }, []);
 
   return (
     <div className="space-y-2">
@@ -383,7 +394,13 @@ export function LoginPage() {
                     type="text"
                     inputMode="numeric"
                     value={captchaAnswer}
-                    onChange={(e) => setCaptchaAnswer(e.target.value)}
+                    onChange={(e) => {
+                      // Allow only digits and minus sign for subtraction results
+                      const value = e.target.value;
+                      if (value === '' || /^\d+$/.test(value) || (value.startsWith('-') && /^\d+$/.test(value.slice(1)))) {
+                        setCaptchaAnswer(value);
+                      }
+                    }}
                     className="input-aura w-full"
                     placeholder="Ваш ответ"
                     required

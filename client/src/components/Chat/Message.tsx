@@ -18,12 +18,19 @@ function VoicePlayer({ url, isOwn }: { url: string; isOwn: boolean }) {
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   function toggle() {
     const a = audioRef.current;
     if (!a) return;
     if (playing) { a.pause(); setPlaying(false); }
-    else { a.play(); setPlaying(true); }
+    else {
+      a.play().catch(err => {
+        console.error('Audio playback failed:', err);
+        setPlaying(false);
+      });
+      setPlaying(true);
+    }
   }
 
   function fmt(s: number) {
@@ -41,6 +48,11 @@ function VoicePlayer({ url, isOwn }: { url: string; isOwn: boolean }) {
         onTimeUpdate={() => setCurrentTime(audioRef.current?.currentTime ?? 0)}
         onLoadedMetadata={() => setDuration(audioRef.current?.duration ?? 0)}
         onEnded={() => { setPlaying(false); setCurrentTime(0); }}
+        onError={(e) => {
+          console.error('Audio element error:', e);
+          setError('Failed to load audio');
+        }}
+        onCanPlay={() => console.log('Audio can play:', url)}
       />
       <button
         onClick={toggle}
@@ -74,6 +86,7 @@ function VoicePlayer({ url, isOwn }: { url: string; isOwn: boolean }) {
           })}
         </div>
         <div className="text-[10px] opacity-60">{fmt(currentTime)} / {fmt(duration)}</div>
+        {error && <div className="text-[10px] text-red-400">{error}</div>}
       </div>
     </div>
   );

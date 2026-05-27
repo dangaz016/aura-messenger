@@ -143,6 +143,22 @@ export function UserProfilePanel({ userId, onClose, onStartChat }: UserProfilePa
                   </p>
                 </div>
               )}
+              {/* Website */}
+              {user.website && (
+                <div className="card p-3">
+                  <div className="text-xs text-aura-text-muted mb-1 font-medium">Веб-сайт</div>
+                  <a href={user.website} target="_blank" rel="noopener noreferrer" className="text-sm text-aura-primary hover:underline">
+                    {user.website.replace(/^https?:\/\//, '')}
+                  </a>
+                </div>
+              )}
+              {/* Location */}
+              {user.location && (
+                <div className="card p-3">
+                  <div className="text-xs text-aura-text-muted mb-1 font-medium">Местоположение</div>
+                  <p className="text-sm">{user.location}</p>
+                </div>
+              )}
 
               {/* Actions */}
               <div className="flex gap-2 pt-2">

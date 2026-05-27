@@ -460,7 +460,7 @@ export function setupSocketHandlers(io: SocketIOServer) {
     });
 
     // ══════════ WebRTC Voice Calls ══════════
-    socket.on('call:offer', (data: { targetUserId: string; offer: unknown; callerName: string }) => {
+    socket.on('call:offer', (data: { targetUserId: string; offer: unknown; callerName: string; hasVideo?: boolean }) => {
       if (!socket.userId) return;
       const targetSockets = userSockets.get(data.targetUserId);
       if (targetSockets) {
@@ -469,12 +469,13 @@ export function setupSocketHandlers(io: SocketIOServer) {
             callerId: socket.userId,
             callerName: data.callerName,
             offer: data.offer,
+            hasVideo: data.hasVideo || false,
           });
         }
       }
     });
 
-    socket.on('call:answer', (data: { targetUserId: string; answer: unknown }) => {
+    socket.on('call:answer', (data: { targetUserId: string; answer: unknown; hasVideo?: boolean }) => {
       if (!socket.userId) return;
       const targetSockets = userSockets.get(data.targetUserId);
       if (targetSockets) {
@@ -482,6 +483,7 @@ export function setupSocketHandlers(io: SocketIOServer) {
           io.to(sid).emit('call:answer', {
             callerId: socket.userId,
             answer: data.answer,
+            hasVideo: data.hasVideo || false,
           });
         }
       }
@@ -495,6 +497,19 @@ export function setupSocketHandlers(io: SocketIOServer) {
           io.to(sid).emit('call:ice-candidate', {
             callerId: socket.userId,
             candidate: data.candidate,
+          });
+        }
+      }
+    });
+
+    socket.on('call:video-state', (data: { targetUserId: string; videoEnabled: boolean }) => {
+      if (!socket.userId) return;
+      const targetSockets = userSockets.get(data.targetUserId);
+      if (targetSockets) {
+        for (const sid of targetSockets) {
+          io.to(sid).emit('call:video-state', {
+            callerId: socket.userId,
+            videoEnabled: data.videoEnabled,
           });
         }
       }

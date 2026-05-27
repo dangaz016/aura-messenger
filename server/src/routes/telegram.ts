@@ -197,4 +197,229 @@ router.post('/webhook', async (req, res) => {
   );
 });
 
+// POST /api/telegram/send-invite — send invite via Telegram
+router.post('/send-invite', authenticateToken, async (req, res) => {
+  const { phoneOrUsername, message } = req.body;
+  if (!phoneOrUsername) {
+    return res.status(400).json({ error: 'phoneOrUsername is required' });
+  }
+ 
+  const db = getDb();
+  const userId = req.user!.userId;
+  const user = db.prepare('SELECT display_name FROM users WHERE id = ?')
+    .get(userId) as { display_name: string } | undefined;
+ 
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+ 
+  const inviteMessage = message || `
+👋 Привет! Меня зовут ${user.display_name}. Присоединяйся ко мне в Aura Messenger — приватном и быстром мессенджере!
+
+📱 Скачай Aura: ${process.env.PUBLIC_URL}
+🔗 Или открой в браузере: ${process.env.PUBLIC_URL}
+
+Поговорим в Aura! 💬
+`;
+ 
+  try {
+    const response = await sendTelegramMessage(phoneOrUsername, inviteMessage);
+    if (response) {
+      res.json({ success: true });
+    } else {
+      res.status(500).json({ error: 'Failed to send invite via Telegram' });
+    }
+  } catch (err) {
+    console.error('Failed to send Telegram invite:', err);
+    res.status(500).json({ error: 'Failed to send invite' });
+  }
+});
+
+// GET /api/telegram/get-chats — get Telegram chats
+router.get('/get-chats', authenticateToken, async (req, res) => {
+  try {
+    const response = await fetch(`${TELEGRAM_API}/getUpdates`);
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error('Failed to fetch Telegram chats:', err);
+    res.status(500).json({ error: 'Failed to fetch Telegram chats' });
+  }
+});
+
+// POST /api/telegram/send-message — send message via Telegram
+router.post('/send-message', authenticateToken, async (req, res) => {
+  const { chatId, text } = req.body;
+  if (!chatId || !text) {
+    return res.status(400).json({ error: 'chatId and text are required' });
+  }
+  try {
+    const response = await sendTelegramMessage(chatId, text);
+    res.json(response);
+  } catch (err) {
+    console.error('Failed to send Telegram message:', err);
+    res.status(500).json({ error: 'Failed to send Telegram message' });
+  }
+});
+
+// POST /api/telegram/forward-message — forward message via Telegram
+router.post('/forward-message', authenticateToken, async (req, res) => {
+  const { fromChatId, messageId, toChatId } = req.body;
+  if (!fromChatId || !messageId || !toChatId) {
+    return res.status(400).json({ error: 'fromChatId, messageId, and toChatId are required' });
+  }
+  try {
+    const response = await fetch(`${TELEGRAM_API}/forwardMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from_chat_id: fromChatId, message_id: messageId, chat_id: toChatId }),
+    });
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error('Failed to forward Telegram message:', err);
+    res.status(500).json({ error: 'Failed to forward Telegram message' });
+  }
+});
+
+// POST /api/telegram/send-photo — send photo via Telegram
+router.post('/send-photo', authenticateToken, async (req, res) => {
+  const { chatId, photo, caption } = req.body;
+  if (!chatId || !photo) {
+    return res.status(400).json({ error: 'chatId and photo are required' });
+  }
+  try {
+    const response = await fetch(`${TELEGRAM_API}/sendPhoto`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, photo, caption }),
+    });
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error('Failed to send Telegram photo:', err);
+    res.status(500).json({ error: 'Failed to send Telegram photo' });
+  }
+});
+
+// POST /api/telegram/send-document — send document via Telegram
+router.post('/send-document', authenticateToken, async (req, res) => {
+  const { chatId, document, caption } = req.body;
+  if (!chatId || !document) {
+    return res.status(400).json({ error: 'chatId and document are required' });
+  }
+  try {
+    const response = await fetch(`${TELEGRAM_API}/sendDocument`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, document, caption }),
+    });
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error('Failed to send Telegram document:', err);
+    res.status(500).json({ error: 'Failed to send Telegram document' });
+  }
+});
+
+// POST /api/telegram/send-audio — send audio via Telegram
+router.post('/send-audio', authenticateToken, async (req, res) => {
+  const { chatId, audio, caption } = req.body;
+  if (!chatId || !audio) {
+    return res.status(400).json({ error: 'chatId and audio are required' });
+  }
+  try {
+    const response = await fetch(`${TELEGRAM_API}/sendAudio`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, audio, caption }),
+    });
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error('Failed to send Telegram audio:', err);
+    res.status(500).json({ error: 'Failed to send Telegram audio' });
+  }
+});
+
+// POST /api/telegram/send-video — send video via Telegram
+router.post('/send-video', authenticateToken, async (req, res) => {
+  const { chatId, video, caption } = req.body;
+  if (!chatId || !video) {
+    return res.status(400).json({ error: 'chatId and video are required' });
+  }
+  try {
+    const response = await fetch(`${TELEGRAM_API}/sendVideo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, video, caption }),
+    });
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error('Failed to send Telegram video:', err);
+    res.status(500).json({ error: 'Failed to send Telegram video' });
+  }
+});
+
+// POST /api/telegram/send-sticker — send sticker via Telegram
+router.post('/send-sticker', authenticateToken, async (req, res) => {
+  const { chatId, sticker } = req.body;
+  if (!chatId || !sticker) {
+    return res.status(400).json({ error: 'chatId and sticker are required' });
+  }
+  try {
+    const response = await fetch(`${TELEGRAM_API}/sendSticker`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, sticker }),
+    });
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error('Failed to send Telegram sticker:', err);
+    res.status(500).json({ error: 'Failed to send Telegram sticker' });
+  }
+});
+
+// POST /api/telegram/send-location — send location via Telegram
+router.post('/send-location', authenticateToken, async (req, res) => {
+  const { chatId, latitude, longitude } = req.body;
+  if (!chatId || !latitude || !longitude) {
+    return res.status(400).json({ error: 'chatId, latitude, and longitude are required' });
+  }
+  try {
+    const response = await fetch(`${TELEGRAM_API}/sendLocation`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, latitude, longitude }),
+    });
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error('Failed to send Telegram location:', err);
+    res.status(500).json({ error: 'Failed to send Telegram location' });
+  }
+});
+
+// POST /api/telegram/send-contact — send contact via Telegram
+router.post('/send-contact', authenticateToken, async (req, res) => {
+  const { chatId, phoneNumber, firstName, lastName } = req.body;
+  if (!chatId || !phoneNumber || !firstName) {
+    return res.status(400).json({ error: 'chatId, phoneNumber, and firstName are required' });
+  }
+  try {
+    const response = await fetch(`${TELEGRAM_API}/sendContact`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, phone_number: phoneNumber, first_name: firstName, last_name: lastName }),
+    });
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error('Failed to send Telegram contact:', err);
+    res.status(500).json({ error: 'Failed to send Telegram contact' });
+  }
+});
+
 export default router;

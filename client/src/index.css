@@ -9,6 +9,30 @@
   }
 }
 
+/* Mobile viewport adjustments */
+@supports (height: 100dvh) {
+  :root {
+    --vh: 100dvh;
+  }
+}
+
+@supports not (height: 100dvh) {
+  :root {
+    --vh: 100vh;
+  }
+}
+
+body {
+  height: var(--vh);
+}
+
+/* Mobile input adjustments */
+@media (max-width: 768px) {
+  .mobile-input-adjust {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 10px);
+  }
+}
+
 /* Default theme CSS variables (Dark) — overridden by ThemeContext */
 :root {
   --aura-bg: #0d0d1a;
@@ -374,7 +398,7 @@
 }
 .cosmos-bg__nebula--cyan {
   width: 800px; height: 800px;
-  right: -250px; top: 30%; left: auto;
+  right: -250px; top: 300%; left: auto;
   background: radial-gradient(circle, rgba(34,211,238,0.40) 0%, rgba(34,211,238,0) 65%);
   animation: cosmosDrift2 45s ease-in-out infinite alternate;
 }

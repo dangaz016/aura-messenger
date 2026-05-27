@@ -335,7 +335,7 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
                 (reports as any[]).map((r: any) => (
                   <div key={r.id} className="p-4 rounded-xl border border-aura-ghost/30 bg-aura-ghost/5">
                     <div className="flex items-start justify-between gap-2">
-                      <div>
+                      <div className="flex-1">
                         <div className="text-sm font-medium">
                           <span className="text-aura-text-muted">From:</span> @{r.reporter_username}
                           {r.target_username && <> <span className="text-aura-text-muted">→</span> @{r.target_username}</>}
@@ -344,20 +344,74 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
                         <div className="text-xs text-aura-text-muted mt-1">
                           {new Date(r.created_at * 1000).toLocaleString()}
                         </div>
+                        {r.chat_name && (
+                          <div className="text-xs text-aura-text-dim mt-1 flex items-center gap-1">
+                            <MessageCircle className="w-3 h-3" />
+                            {r.chat_type === 'group' ? 'Group' : r.chat_type === 'channel' ? 'Channel' : 'Chat'}: {r.chat_name}
+                          </div>
+                        )}
+                        {r.message_content && (
+                          <div className="text-xs text-aura-text-dim mt-1 flex items-center gap-1">
+                            <span>Message: {r.message_content.substring(0, 50)}{r.message_content.length > 50 ? '...' : ''}</span>
+                          </div>
+                        )}
                       </div>
-                      <button
-                        onClick={async () => {
-                          await fetch(`/api/admin/reports/${r.id}/resolve`, {
-                            method: 'POST',
-                            headers: { Authorization: `Bearer ${api.getToken()}` }
-                          });
-                          loadReports();
-                          showMsg('Report resolved');
-                        }}
-                        className="px-3 py-1.5 bg-aura-online/10 hover:bg-aura-online/20 text-aura-online rounded-lg text-xs transition-colors flex-shrink-0"
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex flex-col gap-1 flex-shrink-0">
+                        <button
+                          onClick={async () => {
+                            await fetch(`/api/admin/reports/${r.id}/resolve`, {
+                              method: 'POST',
+                              headers: {
+                                Authorization: `Bearer ${api.getToken()}`,
+                                'Content-Type': 'application/json'
+                              },
+                              body: JSON.stringify({ notifyUser: true })
+                            });
+                            loadReports();
+                            showMsg('Report resolved and user notified');
+                          }}
+                          className="px-2 py-1 bg-aura-online/10 hover:bg-aura-online/20 text-aura-online rounded-lg text-xs transition-colors flex items-center gap-1"
+                          title="Resolve and notify user"
+                        >
+                          <Check className="w-3 h-3" />
+                          Resolve
+                        </button>
+                        <button
+                          onClick={async () => {
+                            await fetch(`/api/admin/reports/${r.id}/view-context`, {
+                              method: 'POST',
+                              headers: { Authorization: `Bearer ${api.getToken()}` }
+                            });
+                            const data = await (await fetch(`/api/admin/reports/${r.id}/details`, {
+                              headers: { Authorization: `Bearer ${api.getToken()}` }
+                            })).json();
+                            alert(`Report details: ${JSON.stringify(data, null, 2)}`);
+                          }}
+                          className="px-2 py-1 bg-aura-primary/10 hover:bg-aura-primary/20 text-aura-primary rounded-lg text-xs transition-colors flex items-center gap-1"
+                          title="View full details"
+                        >
+                          <Search className="w-3 h-3" />
+                          Details
+                        </button>
+                        <button
+                          onClick={async () => {
+                            await fetch(`/api/admin/reports/${r.id}/notify`, {
+                              method: 'POST',
+                              headers: {
+                                Authorization: `Bearer ${api.getToken()}`,
+                                'Content-Type': 'application/json'
+                              },
+                              body: JSON.stringify({ message: 'An admin is reviewing your reported content for assistance purposes only.' })
+                            });
+                            showMsg('User notified about review');
+                          }}
+                          className="px-2 py-1 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 rounded-lg text-xs transition-colors flex items-center gap-1"
+                          title="Notify user about review"
+                        >
+                          <AlertTriangle className="w-3 h-3" />
+                          Notify
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))

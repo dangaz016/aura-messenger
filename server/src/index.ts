@@ -13,6 +13,7 @@ import { Server as SocketIOServer } from 'socket.io';
 import { getDb } from './db/database';
 import { globalLimiter, helmetOptions, aiLimiter } from './middleware/security';
 import { setupSocketHandlers } from './socket/handlers';
+import { backupMediaFiles } from './db/backup';
 import authRoutes from './routes/auth';
 import usersRoutes from './routes/users';
 import chatsRoutes from './routes/chats';
@@ -135,6 +136,20 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', service: 'aura-server', version: '1.0.0' });
 });
 
+// Add backup interval for media files
+setInterval(async () => {
+  try {
+    const backupDir = path.join(__dirname, '../../backups');
+    if (!fs.existsSync(backupDir)) {
+      fs.mkdirSync(backupDir, { recursive: true });
+    }
+    const uploadDir = path.join(__dirname, '../../data/uploads');
+    await backupMediaFiles(uploadDir, backupDir);
+  } catch (err) {
+    console.error('Media backup failed:', err);
+  }
+}, 24 * 60 * 60 * 1000); // Every 24 hours
+
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/chats', chatsRoutes);
@@ -148,11 +163,16 @@ app.use('/api/telegram', telegramRoutes);
 
 // Serve client SPA in production. The client is built into ../client/dist
 // (from compiled server/dist, that's ../../client/dist).
-const CLIENT_DIST_CANDIDATES = [
-  path.join(__dirname, '../../client/dist'),
-  path.join(__dirname, '../client/dist'),
-];
-const CLIENT_DIST = CLIENT_DIST_CANDIDATES.find(p => fs.existsSync(p));
+// In production (Render), client files are served from a different directory than local dev
+const isProduction = process.env.NODE_ENV === 'production';
+const CLIENT_DIST_PATHS = isProduction
+  ? [path.join(__dirname, 'client/dist')]  // Path when client is built as part of server (Render)
+  : [
+      path.join(__dirname, '../../client/dist'),  // Local dev: next to server
+      path.join(__dirname, '../client/dist')      // Alternative local path
+    ];
+
+const CLIENT_DIST = CLIENT_DIST_PATHS.find(p => fs.existsSync(p));
 
 if (CLIENT_DIST) {
   console.log(`[server] Serving client from ${CLIENT_DIST}`);
@@ -165,7 +185,18 @@ if (CLIENT_DIST) {
     res.sendFile(path.join(CLIENT_DIST, 'index.html'));
   });
 } else {
-  console.log('[server] Client build not found — running API-only mode');
+  if (isProduction) {
+    console.error('[server] Client build not found in production! Publication may fail.');
+    // Attempt to use a default path for production
+    const defaultPath = path.join(__dirname, 'client/dist');
+    if (fs.existsSync(defaultPath)) {
+      console.log(`[server] Using default client path: ${defaultPath}`);
+      app.use(express.static(defaultPath));
+      app.use((req, res) => res.sendFile(path.join(defaultPath, 'index.html')));
+    }
+  } else {
+    console.log('[server] Client build not found — running API-only mode');
+  }
 }
 
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

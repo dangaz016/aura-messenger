@@ -40,6 +40,37 @@ export function MediaLightbox({ items, initialIndex, onClose }: MediaLightboxPro
 
   const fileUrl = api.fileUrl(currentItem.fileId);
 
+  // Preload adjacent images for smoother navigation
+  useEffect(() => {
+    if (currentItem.type === 'image') {
+      const prevIndex = currentIndex > 0 ? currentIndex - 1 : items.length - 1;
+      const nextIndex = currentIndex < items.length - 1 ? currentIndex + 1 : 0;
+      
+      if (items[prevIndex]?.type === 'image') {
+        const img = new Image();
+        img.src = api.fileUrl(items[prevIndex].fileId);
+      }
+      if (items[nextIndex]?.type === 'image') {
+        const img = new Image();
+        img.src = api.fileUrl(items[nextIndex].fileId);
+      }
+    }
+  }, [currentIndex, items]);
+
+  // Handle image load errors
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
+  const handleImageLoad = () => {
+    setImageLoaded(true);
+    setImageError(false);
+  };
+
+  const handleImageError = () => {
+    setImageError(true);
+    setImageLoaded(false);
+  };
+
   return (
     <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center">
       {/* Header */}
@@ -93,11 +124,35 @@ export function MediaLightbox({ items, initialIndex, onClose }: MediaLightboxPro
           onClick={(e) => e.stopPropagation()}
         >
           {currentItem.type === 'image' && (
-            <img
-              src={fileUrl}
-              alt={currentItem.fileName || ''}
-              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl animate-fade-in"
-            />
+            <>
+              {!imageLoaded && !imageError && (
+                <div className="w-96 h-96 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-full border-4 border-white/30 border-t-transparent animate-spin" />
+                </div>
+              )}
+              {imageError ? (
+                <div className="w-96 h-96 flex flex-col items-center justify-center bg-red-500/10 rounded-lg border-2 border-red-500/30">
+                  <div className="text-red-400 text-sm mb-2">⚠️ Failed to load image</div>
+                  <button
+                    onClick={() => {
+                      setImageError(false);
+                      setImageLoaded(false);
+                    }}
+                    className="px-4 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-lg text-sm"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : (
+                <img
+                  src={fileUrl}
+                  alt={currentItem.fileName || ''}
+                  className={`max-w-full max-h-full object-contain rounded-lg shadow-2xl ${imageLoaded ? 'animate-fade-in' : 'opacity-0'}`}
+                  onLoad={handleImageLoad}
+                  onError={handleImageError}
+                />
+              )}
+            </>
           )}
           {currentItem.type === 'video' && (
             <video
@@ -106,6 +161,7 @@ export function MediaLightbox({ items, initialIndex, onClose }: MediaLightboxPro
               controls
               autoPlay
               className="max-w-full max-h-full rounded-lg shadow-2xl animate-fade-in"
+              onError={() => alert('Failed to load video')}
             />
           )}
           {currentItem.type === 'voice' && (
@@ -114,7 +170,7 @@ export function MediaLightbox({ items, initialIndex, onClose }: MediaLightboxPro
                 <div className="text-lg font-medium mb-2">🎤 Голосовое сообщение</div>
                 <div className="text-sm text-white/70">{currentItem.fileName}</div>
               </div>
-              <audio src={fileUrl} controls className="w-full" />
+              <audio src={fileUrl} controls className="w-full" onError={() => alert('Failed to load audio')} />
             </div>
           )}
         </div>

@@ -45,7 +45,10 @@ export function Avatar({
       alt={name}
       className="rounded-full object-cover w-full h-full shadow-md"
       style={{ width: size, height: size }}
-      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+      onError={(e) => {
+              console.log(`Avatar image failed to load for ${name}`, e);
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
     />
   ) : (
     <div
